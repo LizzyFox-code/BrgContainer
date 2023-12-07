@@ -62,3 +62,67 @@ var rendererDescription = new RendererDescription
 // After batch adding we get a batch handle.
 m_BatchHandle = m_BrgContainer.AddBatch(ref batchDescription, m_Mesh, 0, m_Material, ref rendererDescription);
 ```
+
+#### A batch handle
+A batch handle provides some API that allow:
+ - get batch instance data buffer
+ - upload instance data for GPU
+ - destroy batch
+
+**Get batch instance data**:
+```c#
+var dataBuffer = m_BatchHandle.AsInstanceDataBuffer();
+```
+
+**Upload instance data to GPU**:
+```c#
+m_BatchHandle.Upload(); // or
+m_BatchHandle.Upload(currentInstanceCount); // set and upload currentInstanceCount instance count
+```
+
+**Destroy batch and remove it from BRG Container**:
+```c#
+m_BatchHandle.Destroy();
+```
+
+#### A batch instance data buffer
+A batch instance data buffer (BatchInstanceDataBuffer) provides some API and allow:
+ - read instance data by index and material property id
+ - write instance data by index and material property id
+ - set current instance count (by default it is zero)
+
+P.S.: A batch instance data buffer support of a Burst package.
+
+**Read instance data**:
+```c#
+var objectToWorldMatrix = dataBuffer.ReadInstanceData<PackedMatrix>(index, ObjectToWorldPropertyId);
+```
+
+**Write instance data**:
+```c#
+dataBuffer.WriteInstanceData(index, ObjectToWorldPropertyId, new PackedMatrix(matrix));
+```
+
+**Set current instance count**:
+```c#
+dataBuffer.SetInstanceCount(m_InstanceCount);
+```
+
+And it has some extension methods:
+**Set TRS matrix**:
+```c#
+dataBuffer.SetTRS(index, position, rotation, new float3(1, 1, 1)); // or
+dataBuffer.SetTRS(index, new Matrix4x4()); // or
+dataBuffer.SetTRS(index, new float4x4());
+```
+
+**Set Color**:
+```c#
+dataBuffer.SetColor(i, m_BaseColorPropertyId, new Color(0.2f, 0.2f, 0.8f)); // or
+dataBuffer.SetColor(i, m_BaseColorPropertyId, new float4(0.2f, 0.2f, 0.8f));
+```
+
+**Set Vector**:
+```c#
+dataBuffer.SetVector(i, m_SomeVectorPropertyId, new float4(1.0f, 0.5f, 1.3f));
+```
