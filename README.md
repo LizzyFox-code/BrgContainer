@@ -109,6 +109,7 @@ dataBuffer.SetInstanceCount(m_InstanceCount);
 ```
 
 And it has some extension methods:
+
 **Set TRS matrix**:
 ```c#
 dataBuffer.SetTRS(index, position, rotation, new float3(1, 1, 1)); // or
@@ -125,4 +126,29 @@ dataBuffer.SetColor(i, m_BaseColorPropertyId, new float4(0.2f, 0.2f, 0.8f));
 **Set Vector**:
 ```c#
 dataBuffer.SetVector(i, m_SomeVectorPropertyId, new float4(1.0f, 0.5f, 1.3f));
+```
+
+#### Packed Matrix
+For this tool we need use a **PackedMatrix** instead **Matrix4x4** or **float4x4**.
+
+<p align="center">
+<img src="docs~/images/brg_matrices.jpg" title="BRG matrix format">
+</p>
+
+```c#
+new PackedMatrix(new Matrix4x4()); // or
+new PackedMatrix(new float4x4());
+
+var packedMatrix = new PackedMatrix(new float4x4());
+var inverseMatrix = packedMatrix.inverse;
+var fullMatrix = packedMatrix.fullMatrix; // float4x4
+var determinant = packedMatrix.determinant;
+var transpose = packedMatrix.transpose;
+
+var position = packedMatrix.GetPosition(); // float3
+var rotation = packedMatrix.GetRotation(); // quaternion
+var forward = packedMatrix.GetForward(); // float3
+
+PackedMatrix.TRS(position, rotation, scale); // float3, quaternion and float3
+// and etc.
 ```
