@@ -91,7 +91,7 @@ A batch instance data buffer (BatchInstanceDataBuffer) provides some API and all
  - write instance data by index and material property id
  - set current instance count (by default it is zero)
 
-P.S.: A batch instance data buffer support of a Burst package.
+P.S.: A batch instance data buffer supports of a Burst package.
 
 **Read instance data**:
 ```c#
