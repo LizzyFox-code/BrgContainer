@@ -7,7 +7,7 @@ BRG is the perfect tool to:
 
 More information about BRG - https://docs.unity3d.com/Manual/batch-renderer-group.html.
 
-The Unity **Batch Rendering Group Tool** that provides a high-level API for instancing data reading and writing. It supports UBO and SSBO buffer types, so it can be used for GLES. Current version of tool has only **Frustum culling**.
+The Unity **Batch Rendering Group Tool** provides a high-level API for instancing data reading and writing. It supports UBO and SSBO buffer types, so it can be used for GLES. Current version of tool has only **Frustum culling**.
 
 ## Dependencies
  - Unity Mathematics: 1.2.6
