@@ -7,7 +7,7 @@ BRG is the perfect tool to:
 
 More information about BRG - https://docs.unity3d.com/Manual/batch-renderer-group.html.
 
-The Unity **Batch Rendering Group Tool** that provides a high-level API for instancing data reading and writing. It supports UBO and SSBO buffer types, so it can be used for GLES. Current version of tool has only **Frustum culling**.
+The Unity **Batch Rendering Group Tool** provides a high-level API for instancing data reading and writing. It supports UBO and SSBO buffer types, so it can be used for GLES. Current version of tool has only **Frustum culling**.
 
 ## Dependencies
  - Unity Mathematics: 1.2.6
@@ -91,7 +91,7 @@ A batch instance data buffer (BatchInstanceDataBuffer) provides some API and all
  - write instance data by index and material property id
  - set current instance count (by default it is zero)
 
-P.S.: A batch instance data buffer support of a Burst package.
+P.S.: A batch instance data buffer supports of a Burst package.
 
 **Read instance data**:
 ```c#
