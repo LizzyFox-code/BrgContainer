@@ -1,6 +1,7 @@
 ﻿namespace BrgContainer.Runtime
 {
     using System.Runtime.CompilerServices;
+    using Unity.Burst;
     using Unity.Mathematics;
     using UnityEngine;
 #if ENABLE_IL2CPP
@@ -14,29 +15,64 @@
 #endif
     public static class BatchInstanceDataBufferExtensions
     {
-        private const int ObjectToWorldPropertyId = 160;
-        private const int WorldToObjectPropertyId = 161;
+        private static readonly SharedStatic<int> m_ObjectToWorldPropertyId = SharedStatic<int>.GetOrCreate<int, ObjectToWorldPropertyId>();
+        private static readonly SharedStatic<int> m_WorldToObjectPropertyId = SharedStatic<int>.GetOrCreate<int, WorldToObjectPropertyId>();
+        
+        private sealed class ObjectToWorldPropertyId { }
+        private sealed class WorldToObjectPropertyId { }
+
+        [BurstDiscard]
+        [RuntimeInitializeOnLoadMethod]
+        private static void OnDomainReload()
+        {
+            m_ObjectToWorldPropertyId.Data = Shader.PropertyToID("unity_ObjectToWorld");
+            m_WorldToObjectPropertyId.Data = Shader.PropertyToID("unity_WorldToObject");
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetTRS(this BatchInstanceDataBuffer buffer, int index, Matrix4x4 matrix)
         {
-            buffer.WriteInstanceData(index, ObjectToWorldPropertyId, new PackedMatrix(matrix));
-            buffer.WriteInstanceData(index, WorldToObjectPropertyId, new PackedMatrix(matrix.inverse));
+            buffer.WriteInstanceData(index, m_ObjectToWorldPropertyId.Data, new PackedMatrix(matrix));
+            buffer.WriteInstanceData(index, m_WorldToObjectPropertyId.Data, new PackedMatrix(matrix.inverse));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetTRS(this BatchInstanceDataBuffer buffer, int index, float4x4 matrix)
         {
-            buffer.WriteInstanceData(index, ObjectToWorldPropertyId, new PackedMatrix(matrix));
-            buffer.WriteInstanceData(index, WorldToObjectPropertyId, new PackedMatrix(math.inverse(matrix)));
+            buffer.WriteInstanceData(index, m_ObjectToWorldPropertyId.Data, new PackedMatrix(matrix));
+            buffer.WriteInstanceData(index, m_WorldToObjectPropertyId.Data, new PackedMatrix(math.inverse(matrix)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetTRS(this BatchInstanceDataBuffer buffer, int index, float3 position, quaternion rotation, float3 scale)
         {
             var matrix = PackedMatrix.TRS(position, rotation, scale);
-            buffer.WriteInstanceData(index, ObjectToWorldPropertyId, matrix);
-            buffer.WriteInstanceData(index, WorldToObjectPropertyId, matrix.inverse);
+            buffer.WriteInstanceData(index, m_ObjectToWorldPropertyId.Data, matrix);
+            buffer.WriteInstanceData(index, m_WorldToObjectPropertyId.Data, matrix.inverse);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float4x4 GetTRS(this BatchInstanceDataBuffer buffer, int index)
+        {
+            return buffer.ReadInstanceData<PackedMatrix>(index, m_ObjectToWorldPropertyId.Data).fullMatrix;
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetMatrix(this BatchInstanceDataBuffer buffer, int index, int propertyId, float4x4 matrix)
+        {
+            buffer.WriteInstanceData(index, propertyId, new PackedMatrix(matrix));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetMatrix(this BatchInstanceDataBuffer buffer, int index, int propertyId, Matrix4x4 matrix)
+        {
+            buffer.WriteInstanceData(index, propertyId, new PackedMatrix(matrix));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float4x4 GetMatrix(this BatchInstanceDataBuffer buffer, int index, int propertyId)
+        {
+            return buffer.ReadInstanceData<PackedMatrix>(index, propertyId).fullMatrix;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -53,9 +89,45 @@
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float4 GetColor(this BatchInstanceDataBuffer buffer, int index, int propertyId)
+        {
+            return buffer.ReadInstanceData<float4>(index, propertyId);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetVector(this BatchInstanceDataBuffer buffer, int index, int propertyId, float4 vector)
         {
             buffer.WriteInstanceData(index, propertyId, vector);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float4 GetVector(this BatchInstanceDataBuffer buffer, int index, int propertyId)
+        {
+            return buffer.ReadInstanceData<float4>(index, propertyId);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetFloat(this BatchInstanceDataBuffer buffer, int index, int propertyId, float value)
+        {
+            buffer.WriteInstanceData(index, propertyId, value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float GetFloat(this BatchInstanceDataBuffer buffer, int index, int propertyId)
+        {
+            return buffer.ReadInstanceData<float>(index, propertyId);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetInt(this BatchInstanceDataBuffer buffer, int index, int propertyId, int value)
+        {
+            buffer.WriteInstanceData(index, propertyId, value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetInt(this BatchInstanceDataBuffer buffer, int index, int propertyId)
+        {
+            return buffer.ReadInstanceData<int>(index, propertyId);
         }
     }
 }

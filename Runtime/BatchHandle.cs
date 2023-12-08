@@ -13,7 +13,7 @@
     [StructLayout(LayoutKind.Sequential)]
     public readonly struct BatchHandle
     {
-        private readonly BatchID m_BatchId;
+        internal readonly BatchID m_BatchId;
         
         private readonly NativeArray<float4> m_Buffer;
         private readonly unsafe int* m_InstanceCount;

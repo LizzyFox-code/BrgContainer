@@ -29,16 +29,32 @@
         private NativeHashMap<BatchID, BatchGroup> m_Groups;
 
         /// <summary>
-        /// Create instance of <see cref="BatchRendererGroupContainer"/>.
+        /// Create an instance of the <see cref="BatchRendererGroupContainer"/>.
         /// </summary>
-        /// <param name="bounds">World bounds.</param>
-        public BatchRendererGroupContainer(Bounds bounds)
+        /// <param name="bounds">The center and the size of the global batch bounding box.</param>
+        public BatchRendererGroupContainer(Bounds bounds) : this()
+        {
+            m_BatchRendererGroup.SetGlobalBounds(bounds);
+        }
+
+        /// <summary>
+        /// Create an instance of the <see cref="BatchRendererGroupContainer"/>.
+        /// </summary>
+        public BatchRendererGroupContainer()
         {
             m_BatchRendererGroup = new BatchRendererGroup(CullingCallback, IntPtr.Zero);
-            m_BatchRendererGroup.SetGlobalBounds(bounds);
-
             m_GraphicsBuffers = new Dictionary<BatchID, GraphicsBuffer>();
             m_Groups = new NativeHashMap<BatchID, BatchGroup>(1, Allocator.Persistent);
+        }
+
+        /// <summary>
+        /// Set the bounds of the BatchRendererGroup. The bounds should encapsulate the render bounds
+        /// of every object rendered with this BatchRendererGroup. Unity uses these bounds internally for culling.
+        /// </summary>
+        /// <param name="bounds">The center and the size of the global batch bounding box.</param>
+        public void SetGlobalBounds(Bounds bounds)
+        {
+            m_BatchRendererGroup.SetGlobalBounds(bounds);
         }
 
         /// <summary>
@@ -48,12 +64,12 @@
         /// <param name="mesh">A mesh that will be rendering with this batch.</param>
         /// <param name="subMeshIndex">A subMesh index for a mesh.</param>
         /// <param name="material">A mesh material.</param>
-        /// <param name="description">A renderer description provides a rendering metadata.</param>
+        /// <param name="rendererDescription">A renderer description provides a rendering metadata.</param>
         /// <returns>Returns a batch handle that provides some API for write and upload instance data for the GPU.</returns>
-        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, ref RendererDescription description)
+        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, ref RendererDescription rendererDescription)
         {
             var graphicsBuffer = CreateGraphicsBuffer(BatchDescription.IsUBO, batchDescription.TotalBufferSize);
-            var rendererData = CreateRendererData(mesh, subMeshIndex, material, ref description);
+            var rendererData = CreateRendererData(mesh, subMeshIndex, material, ref rendererDescription);
             var batchGroup = CreateBatchGroup(ref batchDescription, rendererData, graphicsBuffer.bufferHandle);
             
             var batchId = batchGroup[0];
@@ -61,6 +77,15 @@
             m_Groups.Add(batchId, batchGroup);
 
             return new BatchHandle(batchId, batchGroup.GetNativeBuffer(), batchGroup.m_InstanceCount, ref batchDescription, UploadCallback, RemoveBatchCallback, IsAliveCallback);
+        }
+
+        /// <summary>
+        /// Remove the exist batch.
+        /// </summary>
+        /// <param name="batchHandle"></param>
+        public void RemoveBatch(in BatchHandle batchHandle)
+        {
+            RemoveBatchCallback(batchHandle.m_BatchId);
         }
 
         /// <summary>
@@ -75,7 +100,6 @@
             }
             
             m_Groups.Dispose();
-
             m_BatchRendererGroup.Dispose();
 
             foreach (var graphicsBuffer in m_GraphicsBuffers.Values)
@@ -98,8 +122,8 @@
                 batchGroup.Dispose();
             }
             
-            m_GraphicsBuffers.Remove(batchID, out var graphicsBuffer);
-            graphicsBuffer.Dispose();
+            if(m_GraphicsBuffers.Remove(batchID, out var graphicsBuffer))
+                graphicsBuffer.Dispose();
         }
         
         private bool IsAliveCallback(BatchID batchId)
@@ -145,7 +169,7 @@
                 batchCount += batchGroups[i].GetDrawCommandCount(); // sub batch count (for UBO)
             
             if(batchCount == 0)
-                return new JobHandle();
+                return batchGroups.Dispose(default);
 
             var visibleIndicesPerBatch = new NativeArray<BatchInstanceIndices>(batchCount, Allocator.TempJob);
             var visibleCountPerBatch = new NativeArray<int>(batchCount, Allocator.TempJob);
