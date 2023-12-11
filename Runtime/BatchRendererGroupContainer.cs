@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
+    using System.Runtime.InteropServices;
     using Jobs;
     using Unity.Burst;
     using Unity.Collections;
@@ -28,6 +29,10 @@
         private readonly Dictionary<BatchID, GraphicsBuffer> m_GraphicsBuffers; // per group
         private NativeHashMap<BatchID, BatchGroup> m_Groups;
 
+        private readonly FunctionPointer<UploadDelegate> m_UploadFunctionPointer;
+        private readonly FunctionPointer<DestroyBatchDelegate> m_DestroyBatchFunctionPointer;
+        private readonly FunctionPointer<IsBatchAliveDelegate> m_IsBatchAliveFunctionPointer;
+
         /// <summary>
         /// Create an instance of the <see cref="BatchRendererGroupContainer"/>.
         /// </summary>
@@ -45,6 +50,10 @@
             m_BatchRendererGroup = new BatchRendererGroup(CullingCallback, IntPtr.Zero);
             m_GraphicsBuffers = new Dictionary<BatchID, GraphicsBuffer>();
             m_Groups = new NativeHashMap<BatchID, BatchGroup>(1, Allocator.Persistent);
+            
+            m_UploadFunctionPointer = new FunctionPointer<UploadDelegate>(Marshal.GetFunctionPointerForDelegate(new UploadDelegate(UploadCallback)));
+            m_DestroyBatchFunctionPointer = new FunctionPointer<DestroyBatchDelegate>(Marshal.GetFunctionPointerForDelegate(new DestroyBatchDelegate(DestroyBatchCallback)));
+            m_IsBatchAliveFunctionPointer = new FunctionPointer<IsBatchAliveDelegate>(Marshal.GetFunctionPointerForDelegate(new IsBatchAliveDelegate(IsAliveCallback)));
         }
 
         /// <summary>
@@ -76,7 +85,7 @@
             m_GraphicsBuffers.Add(batchId, graphicsBuffer);
             m_Groups.Add(batchId, batchGroup);
 
-            return new BatchHandle(batchId, batchGroup.GetNativeBuffer(), batchGroup.m_InstanceCount, ref batchDescription, UploadCallback, RemoveBatchCallback, IsAliveCallback);
+            return new BatchHandle(batchId, batchGroup.GetNativeBuffer(), batchGroup.m_InstanceCount, ref batchDescription, m_UploadFunctionPointer, m_DestroyBatchFunctionPointer, m_IsBatchAliveFunctionPointer);
         }
 
         /// <summary>
@@ -85,7 +94,7 @@
         /// <param name="batchHandle"></param>
         public void RemoveBatch(in BatchHandle batchHandle)
         {
-            RemoveBatchCallback(batchHandle.m_BatchId);
+            DestroyBatchCallback(batchHandle.m_BatchId);
         }
 
         /// <summary>
@@ -108,12 +117,14 @@
             m_GraphicsBuffers.Clear();
         }
         
+        [AOT.MonoPInvokeCallback(typeof(UploadDelegate))]
         private void UploadCallback(BatchID batchID, NativeArray<float4> data, int nativeBufferStartIndex, int graphicsBufferStartIndex, int count)
         {
             m_GraphicsBuffers[batchID].SetData(data, nativeBufferStartIndex, graphicsBufferStartIndex, count);
         }
         
-        private void RemoveBatchCallback(BatchID batchID)
+        [AOT.MonoPInvokeCallback(typeof(DestroyBatchDelegate))]
+        private void DestroyBatchCallback(BatchID batchID)
         {
             if(m_Groups.TryGetValue(batchID, out var batchGroup))
             {
@@ -126,6 +137,7 @@
                 graphicsBuffer.Dispose();
         }
         
+        [AOT.MonoPInvokeCallback(typeof(DestroyBatchDelegate))]
         private bool IsAliveCallback(BatchID batchId)
         {
             return m_Groups.ContainsKey(batchId);

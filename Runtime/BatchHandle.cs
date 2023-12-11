@@ -1,9 +1,10 @@
 ﻿namespace BrgContainer.Runtime
 {
-    using System.Diagnostics.CodeAnalysis;
+    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using Unity.Burst;
     using Unity.Collections;
+    using Unity.Collections.LowLevel.Unsafe;
     using Unity.Mathematics;
     using UnityEngine.Rendering;
 
@@ -15,19 +16,22 @@
     {
         internal readonly BatchID m_BatchId;
         
+        [NativeDisableContainerSafetyRestriction]
         private readonly NativeArray<float4> m_Buffer;
+        [NativeDisableUnsafePtrRestriction]
         private readonly unsafe int* m_InstanceCount;
+        [NativeDisableContainerSafetyRestriction]
         private readonly BatchDescription m_Description;
         
-        private readonly SetGPUDataDelegate<float4> m_UploadCallback;
-        private readonly DestroyBatchDelegate m_DestroyCallback;
-        private readonly IsAliveDelegate m_IsAliveCallback;
+        private readonly FunctionPointer<UploadDelegate> m_UploadCallback;
+        private readonly FunctionPointer<DestroyBatchDelegate> m_DestroyCallback;
+        private readonly FunctionPointer<IsBatchAliveDelegate> m_IsAliveCallback;
 
-        public bool IsAlive => m_IsAliveCallback != null && m_IsAliveCallback.Invoke(m_BatchId);
+        public bool IsAlive => CheckIfIsAlive(m_BatchId);
 
         [ExcludeFromBurstCompatTesting("BatchHandle creating is unburstable")]
         internal unsafe BatchHandle(BatchID batchId, NativeArray<float4> buffer, int* instanceCount, ref BatchDescription description, 
-            [NotNull]SetGPUDataDelegate<float4> uploadCallback, [NotNull]DestroyBatchDelegate destroyCallback, [NotNull]IsAliveDelegate isAliveCallback)
+            FunctionPointer<UploadDelegate> uploadCallback, FunctionPointer<DestroyBatchDelegate> destroyCallback, FunctionPointer<IsBatchAliveDelegate> isAliveCallback)
         {
             m_BatchId = batchId;
             
@@ -54,14 +58,13 @@
         /// Upload current data to the GPU side.
         /// </summary>
         /// <param name="instanceCount"></param>
-        [BurstDiscard]
         public unsafe void Upload(int instanceCount)
         {
             var completeWindows = instanceCount / m_Description.MaxInstancePerWindow;
             if (completeWindows > 0)
             {
                 var size = completeWindows * m_Description.AlignedWindowSize / 16;
-                m_UploadCallback?.Invoke(m_BatchId, m_Buffer, 0, 0, size);
+                Upload(m_BatchId, m_Buffer, 0, 0, size);
             }
 
             var lastBatchId = completeWindows;
@@ -81,7 +84,7 @@
                 var sizeInFloat = metadataInfo.Size / 16;
                 offset += sizeInFloat;
 
-                m_UploadCallback?.Invoke(m_BatchId, m_Buffer, startIndex, startIndex,
+                Upload(m_BatchId, m_Buffer, startIndex, startIndex,
                     itemInLastBatch * sizeInFloat);
             }
 
@@ -91,7 +94,6 @@
         /// <summary>
         /// Upload current data to the GPU side.
         /// </summary>
-        [BurstDiscard]
         public unsafe void Upload()
         {
             Upload(*m_InstanceCount);
@@ -103,7 +105,37 @@
         [ExcludeFromBurstCompatTesting("BatchHandle destroying is unburstable")]
         public void Destroy()
         {
-            m_DestroyCallback.Invoke(m_BatchId);
+            Destroy(m_BatchId);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void Upload(BatchID batchId, NativeArray<float4> data, int nativeBufferStartIndex, int graphicsBufferStartIndex, int count)
+        {
+            unsafe
+            {
+                ((delegate * unmanaged[Cdecl] <BatchID, NativeArray<float4>, int, int, int, void>)m_UploadCallback.Value)(batchId, data, nativeBufferStartIndex, graphicsBufferStartIndex, count);
+            }
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void Destroy(BatchID batchId)
+        {
+            unsafe
+            {
+                ((delegate * unmanaged[Cdecl] <BatchID, void>)m_DestroyCallback.Value)(batchId);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool CheckIfIsAlive(BatchID batchId)
+        {
+            bool isAlive;
+            unsafe
+            {
+                isAlive = ((delegate * unmanaged[Cdecl] <BatchID, bool>)m_IsAliveCallback.Value)(batchId);
+            }
+
+            return isAlive;
         }
     }
 }
