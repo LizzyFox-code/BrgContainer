@@ -114,10 +114,24 @@
             Interlocked.Exchange(ref *m_InstanceCount, instanceCount);
         }
 
-        public unsafe NativeArray<PackedMatrix> AsObjectToWorldArray(Allocator allocator)
+        public unsafe NativeArray<PackedMatrix> GetObjectToWorldArray(Allocator allocator)
         {
             var nativeArray = new NativeArray<PackedMatrix>(InstanceCount, allocator);
-            UnsafeUtility.MemCpy(nativeArray.GetUnsafePtr(), m_DataBuffer, InstanceCount * UnsafeUtility.SizeOf<PackedMatrix>());
+            var windowCount = this.GetWindowCount();
+
+            for (var i = 0; i < windowCount; i++)
+            {
+                var instanceCountPerWindow = this.GetInstanceCountPerWindow(i);
+                var sourceOffset = i * m_BatchDescription.AlignedWindowSize;
+                var destinationOffset = i * m_BatchDescription.MaxInstancePerWindow * UnsafeUtility.SizeOf<PackedMatrix>();
+                var size = instanceCountPerWindow * UnsafeUtility.SizeOf<PackedMatrix>();
+
+                var sourcePtr = (void*) ((IntPtr) m_DataBuffer + sourceOffset);
+                var destinationPtr = (void*) ((IntPtr) nativeArray.GetUnsafePtr() + destinationOffset);
+                
+                UnsafeUtility.MemCpy(destinationPtr, sourcePtr, size);
+            }
+
             return nativeArray;
         }
         

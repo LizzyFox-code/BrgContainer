@@ -28,7 +28,7 @@
                 return;
 
             var batchGroup = BatchGroups[index];
-            var subBatchCount = batchGroup.GetDrawCommandCount();
+            var subBatchCount = batchGroup.GetWindowCount();
 
             var dcIndex = drawRangeData.Begin;
             var visibleOffset = drawRangeData.VisibleIndexOffset;

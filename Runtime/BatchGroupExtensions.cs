@@ -13,13 +13,13 @@
     public static class BatchGroupExtensions
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetDrawCommandCount(this BatchGroup batchGroup)
+        public static int GetWindowCount(this BatchGroup batchGroup)
         {
-            return GetDrawCommandCount(batchGroup, batchGroup.InstanceCount);
+            return GetWindowCount(batchGroup, batchGroup.InstanceCount);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetDrawCommandCount(this BatchGroup batchGroup, int instanceCount)
+        public static int GetWindowCount(this BatchGroup batchGroup, int instanceCount)
         {
             var description = batchGroup.m_BatchDescription;
             return (instanceCount + description.MaxInstancePerWindow - 1) /
@@ -27,10 +27,10 @@
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetInstanceCountByBatchIndex(this BatchGroup batchGroup, int subBatchIndex)
+        public static int GetInstanceCountPerWindow(this BatchGroup batchGroup, int subBatchIndex)
         {
             var description = batchGroup.m_BatchDescription;
-            var batchCount = GetDrawCommandCount(batchGroup);
+            var batchCount = GetWindowCount(batchGroup);
             if (subBatchIndex >= batchCount)
                 return 0;
 

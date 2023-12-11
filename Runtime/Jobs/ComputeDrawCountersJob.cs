@@ -24,7 +24,7 @@
         public unsafe void Execute(int index)
         {
             var batchGroup = BatchGroups[index];
-            var subBatchCount = batchGroup.GetDrawCommandCount();
+            var subBatchCount = batchGroup.GetWindowCount();
 
             var validSubBatchCount = 0;
             var visibleCountPerBatchGroup = 0;

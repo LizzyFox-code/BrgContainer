@@ -178,7 +178,7 @@
 
             var batchCount = 0;
             for (var i = 0; i < batchGroups.Length; i++)
-                batchCount += batchGroups[i].GetDrawCommandCount(); // sub batch count (for UBO)
+                batchCount += batchGroups[i].GetWindowCount(); // sub batch count (for UBO)
             
             if(batchCount == 0)
                 return batchGroups.Dispose(default);
@@ -191,13 +191,13 @@
             {
                 var batchGroup = batchGroups[i];
                 var maxInstancePerWindow = batchGroup.m_BatchDescription.MaxInstancePerWindow;
-                var subBatchCount = batchGroup.GetDrawCommandCount();
-                var objectToWorld = batchGroup.AsObjectToWorldArray(Allocator.TempJob);
+                var windowCount = batchGroup.GetWindowCount();
+                var objectToWorld = batchGroup.GetObjectToWorldArray(Allocator.TempJob);
 
                 JobHandle batchHandle = default;
-                for (var b = 0; b < subBatchCount; b++)
+                for (var b = 0; b < windowCount; b++)
                 {
-                    var instanceCountPerBatch = batchGroup.GetInstanceCountByBatchIndex(b);
+                    var instanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(b);
                     var visibleIndices = new NativeList<int>(instanceCountPerBatch, Allocator.TempJob);
                     var cullingJob = new CullingBatchInstancesJob
                     {

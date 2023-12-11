@@ -31,7 +31,7 @@
                 return; // there is no any visible batches
             
             var batchGroup = BatchGroups[index];
-            var subBatchCount = batchGroup.GetDrawCommandCount();
+            var subBatchCount = batchGroup.GetWindowCount();
             var visibleOffset = drawRangeData.VisibleIndexOffset;
             
             for (var i = 0; i < subBatchCount; i++)
