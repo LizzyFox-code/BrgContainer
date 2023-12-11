@@ -4,5 +4,5 @@
     using UnityEngine.Rendering;
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void DestroyBatchDelegate(BatchID batchId);
+    internal delegate void DestroyBatchDelegate(ContainerId containerId, BatchID batchId);
 }

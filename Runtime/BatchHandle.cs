@@ -14,6 +14,7 @@
     [StructLayout(LayoutKind.Sequential)]
     public readonly struct BatchHandle
     {
+        private readonly ContainerId m_ContainerId;
         internal readonly BatchID m_BatchId;
         
         [NativeDisableContainerSafetyRestriction]
@@ -27,12 +28,13 @@
         private readonly FunctionPointer<DestroyBatchDelegate> m_DestroyCallback;
         private readonly FunctionPointer<IsBatchAliveDelegate> m_IsAliveCallback;
 
-        public bool IsAlive => CheckIfIsAlive(m_BatchId);
+        public bool IsAlive => CheckIfIsAlive(m_ContainerId, m_BatchId);
 
         [ExcludeFromBurstCompatTesting("BatchHandle creating is unburstable")]
-        internal unsafe BatchHandle(BatchID batchId, NativeArray<float4> buffer, int* instanceCount, ref BatchDescription description, 
+        internal unsafe BatchHandle(ContainerId containerId, BatchID batchId, NativeArray<float4> buffer, int* instanceCount, ref BatchDescription description, 
             FunctionPointer<UploadDelegate> uploadCallback, FunctionPointer<DestroyBatchDelegate> destroyCallback, FunctionPointer<IsBatchAliveDelegate> isAliveCallback)
         {
+            m_ContainerId = containerId;
             m_BatchId = batchId;
             
             m_Buffer = buffer;
@@ -64,7 +66,7 @@
             if (completeWindows > 0)
             {
                 var size = completeWindows * m_Description.AlignedWindowSize / 16;
-                Upload(m_BatchId, m_Buffer, 0, 0, size);
+                Upload(m_ContainerId, m_BatchId, m_Buffer, 0, 0, size);
             }
 
             var lastBatchId = completeWindows;
@@ -84,7 +86,7 @@
                 var sizeInFloat = metadataInfo.Size / 16;
                 offset += sizeInFloat;
 
-                Upload(m_BatchId, m_Buffer, startIndex, startIndex,
+                Upload(m_ContainerId, m_BatchId, m_Buffer, startIndex, startIndex,
                     itemInLastBatch * sizeInFloat);
             }
 
@@ -105,34 +107,35 @@
         [ExcludeFromBurstCompatTesting("BatchHandle destroying is unburstable")]
         public void Destroy()
         {
-            Destroy(m_BatchId);
+            Destroy(m_ContainerId, m_BatchId);
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Upload(BatchID batchId, NativeArray<float4> data, int nativeBufferStartIndex, int graphicsBufferStartIndex, int count)
+        private void Upload(ContainerId containerId, BatchID batchId, NativeArray<float4> data, int nativeBufferStartIndex, int graphicsBufferStartIndex, int count)
         {
             unsafe
             {
-                ((delegate * unmanaged[Cdecl] <BatchID, NativeArray<float4>, int, int, int, void>)m_UploadCallback.Value)(batchId, data, nativeBufferStartIndex, graphicsBufferStartIndex, count);
+                ((delegate * unmanaged[Cdecl] <ContainerId, BatchID, NativeArray<float4>, int, int, int, void>)m_UploadCallback.Value)(containerId, batchId, data, 
+                    nativeBufferStartIndex, graphicsBufferStartIndex, count);
             }
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Destroy(BatchID batchId)
+        private void Destroy(ContainerId containerId, BatchID batchId)
         {
             unsafe
             {
-                ((delegate * unmanaged[Cdecl] <BatchID, void>)m_DestroyCallback.Value)(batchId);
+                ((delegate * unmanaged[Cdecl] <ContainerId, BatchID, void>)m_DestroyCallback.Value)(containerId, batchId);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool CheckIfIsAlive(BatchID batchId)
+        private bool CheckIfIsAlive(ContainerId containerId, BatchID batchId)
         {
             bool isAlive;
             unsafe
             {
-                isAlive = ((delegate * unmanaged[Cdecl] <BatchID, bool>)m_IsAliveCallback.Value)(batchId);
+                isAlive = ((delegate * unmanaged[Cdecl] <ContainerId, BatchID, bool>)m_IsAliveCallback.Value)(containerId, batchId);
             }
 
             return isAlive;
