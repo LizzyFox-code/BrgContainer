@@ -9,28 +9,31 @@
 
     [StructLayout(LayoutKind.Sequential)]
     [BurstCompile(OptimizeFor = OptimizeFor.Performance, FloatMode = FloatMode.Fast, CompileSynchronously = true, FloatPrecision = FloatPrecision.Low, DisableSafetyChecks = true)]
-    internal struct ComputeDrawCountersJob : IJobFor
+    internal struct ComputeDrawCountersJob : IJob
     {
-        [WriteOnly, NativeDisableParallelForRestriction]
+        [WriteOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<int> DrawCounters; // 0 - is visible count, 1 - is draw ranges count, 2 - is draw command count
-        [NativeDisableParallelForRestriction]
+        [NativeDisableContainerSafetyRestriction]
         public NativeArray<int> VisibleCountPerBatch;
-        [NativeDisableParallelForRestriction]
+        [NativeDisableContainerSafetyRestriction]
         public NativeArray<BatchGroupDrawRange> DrawRangesData;
 
         [ReadOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<BatchGroup> BatchGroups;
 
-        public unsafe void Execute(int index)
+        public int BatchGroupIndex;
+        public int BatchOffset;
+
+        public unsafe void Execute()
         {
-            var batchGroup = BatchGroups[index];
+            var batchGroup = BatchGroups[BatchGroupIndex];
             var subBatchCount = batchGroup.GetWindowCount();
 
             var validSubBatchCount = 0;
             var visibleCountPerBatchGroup = 0;
             for (var i = 0; i < subBatchCount; i++)
             {
-                var visibleCountPerBatch = VisibleCountPerBatch[index + i];
+                var visibleCountPerBatch = VisibleCountPerBatch[BatchOffset + i];
                 if(visibleCountPerBatch == 0) // there is no any visible instances for this batch
                     continue;
 
@@ -38,10 +41,10 @@
                 validSubBatchCount++;
             }
             
-            ref var drawRangeDataRef = ref UnsafeUtility.ArrayElementAsRef<BatchGroupDrawRange>(DrawRangesData.GetUnsafePtr(), index);
+            ref var drawRangeDataRef = ref UnsafeUtility.ArrayElementAsRef<BatchGroupDrawRange>(DrawRangesData.GetUnsafePtr(), BatchGroupIndex);
             if(validSubBatchCount == 0)
             {
-                for (var i = index + 1; i < BatchGroups.Length; i++)
+                for (var i = BatchGroupIndex + 1; i < BatchGroups.Length; i++)
                 {
                     ref var nextDrawRangeDataRef = ref UnsafeUtility.ArrayElementAsRef<BatchGroupDrawRange>(DrawRangesData.GetUnsafePtr(), i);
                     Interlocked.Decrement(ref nextDrawRangeDataRef.IndexOffset);
@@ -59,7 +62,7 @@
 
             drawRangeDataRef.Count = validSubBatchCount;
             
-            for (var i = index + 1; i < BatchGroups.Length; i++) // prefix sum
+            for (var i = BatchGroupIndex + 1; i < BatchGroups.Length; i++) // prefix sum
             {
                 ref var nextDrawRangeDataRef = ref UnsafeUtility.ArrayElementAsRef<BatchGroupDrawRange>(DrawRangesData.GetUnsafePtr(), i);
                 Interlocked.Add(ref nextDrawRangeDataRef.Begin, validSubBatchCount);

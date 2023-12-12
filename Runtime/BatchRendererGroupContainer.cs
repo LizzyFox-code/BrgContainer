@@ -104,6 +104,7 @@
                 ref batchDescription, m_UploadFunctionPointer, m_DestroyBatchFunctionPointer, m_IsBatchAliveFunctionPointer);
         }
 
+
         /// <summary>
         /// Remove the exist batch.
         /// </summary>
@@ -213,6 +214,7 @@
             var visibleIndicesPerBatch = new NativeArray<BatchInstanceIndices>(batchCount, Allocator.TempJob);
             var visibleCountPerBatch = new NativeArray<int>(batchCount, Allocator.TempJob);
 
+            var offset = 0;
             var batchJobHandles = stackalloc JobHandle[batchCount];
             for (var i = 0; i < batchGroups.Length; i++)
             {
@@ -240,12 +242,13 @@
                         VisibleIndicesPerBatch = visibleIndicesPerBatch,
                         VisibleIndices = visibleIndices,
                         VisibleCountPerChunk = visibleCountPerBatch,
-                        BatchIndex = i + b
+                        BatchIndex = offset + b
                     };
                     batchHandle = copyJob.ScheduleByRef(jobHandle);
                     batchHandle = visibleIndices.Dispose(batchHandle);
                 }
 
+                offset += windowCount;
                 batchJobHandles[i] = objectToWorld.Dispose(batchHandle);
             }
 
@@ -253,22 +256,35 @@
 
             var drawCounters = new NativeArray<int>(3, Allocator.TempJob);
             var drawRangeData = new NativeArray<BatchGroupDrawRange>(batchGroups.Length, Allocator.TempJob);
-            
-            var computeDrawCountersJob = new ComputeDrawCountersJob
+
+            offset = 0;
+            for (var i = 0; i < batchGroups.Length; i++)
             {
-                DrawCounters = drawCounters,
-                VisibleCountPerBatch = visibleCountPerBatch,
-                DrawRangesData = drawRangeData,
-                BatchGroups = batchGroups
-            };
-            var computeDrawCountersHandle = computeDrawCountersJob.ScheduleParallelByRef(batchGroups.Length, 32, cullingHandle);
+                var batchGroup = batchGroups[i];
+                var windowCount = batchGroup.GetWindowCount();
+                
+                var computeDrawCountersJob = new ComputeDrawCountersJob
+                {
+                    DrawCounters = drawCounters,
+                    VisibleCountPerBatch = visibleCountPerBatch,
+                    DrawRangesData = drawRangeData,
+                    BatchGroups = batchGroups,
+                    BatchGroupIndex = i,
+                    BatchOffset = offset
+                };
+                    
+                offset += windowCount;
+                batchJobHandles[i] = computeDrawCountersJob.ScheduleByRef(cullingHandle);
+            }
+            
+            var countersHandle = JobHandleUnsafeUtility.CombineDependencies(batchJobHandles, batchCount);
 
             var allocateOutputDrawCommandsJob = new AllocateOutputDrawCommandsJob
             {
                 OutputDrawCommands = (BatchCullingOutputDrawCommands*) cullingoutput.drawCommands.GetUnsafePtr(),
                 Counters = drawCounters
             };
-            var allocateOutputDrawCommandsHandle = allocateOutputDrawCommandsJob.ScheduleByRef(computeDrawCountersHandle);
+            var allocateOutputDrawCommandsHandle = allocateOutputDrawCommandsJob.ScheduleByRef(countersHandle);
             allocateOutputDrawCommandsHandle = drawCounters.Dispose(allocateOutputDrawCommandsHandle); 
 
             var createDrawRangesJob = new CreateDrawRangesJob
