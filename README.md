@@ -14,6 +14,11 @@ The Unity **Batch Rendering Group Tool** provides a high-level API for instancin
  - Unity Collections: 2.2.1
  - Unity Burst: 1.8.8
 
+## How to install
+From UPM:
+ - install package from git URL (https://github.com/LizzyFox-code/BrgContainer)
+ - install package from disk: download repo as zip archive, unpack and select package.json file
+
 ## Usage
 #### Create a BatchRendererGroupContainer
 First, we need to create the **BatchRendererGroupContainer** and set global bounds.
