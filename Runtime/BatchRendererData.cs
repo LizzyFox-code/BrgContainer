@@ -14,7 +14,7 @@
         public readonly RendererDescription Description;
         public readonly float3 Extents;
 
-        public BatchRendererData(BatchMeshID meshID, BatchMaterialID materialID, ushort subMeshIndex, float3 extents, ref RendererDescription description)
+        public BatchRendererData(BatchMeshID meshID, BatchMaterialID materialID, ushort subMeshIndex, float3 extents, in RendererDescription description)
         {
             MeshID = meshID;
             MaterialID = materialID;

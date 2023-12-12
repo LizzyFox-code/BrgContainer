@@ -53,16 +53,8 @@
             var batchDescription = new BatchDescription(m_CubeCount, materialProperties, Allocator.Persistent);
             materialProperties.Dispose();
 
-            var rendererDescription = new RendererDescription
-            {
-                MotionMode = MotionVectorGenerationMode.Camera,
-                ReceiveShadows = true,
-                ShadowCastingMode = ShadowCastingMode.On,
-                StaticShadowCaster = false,
-                RenderingLayerMask = 1,
-                Layer = 0
-            };
-            m_BatchHandle = m_BrgContainer.AddBatch(ref batchDescription, m_Mesh, 0, m_Material, ref rendererDescription);
+            var rendererDescription = new RendererDescription(ShadowCastingMode.On, true, false, 1, 0, MotionVectorGenerationMode.Camera);
+            m_BatchHandle = m_BrgContainer.AddBatch(ref batchDescription, m_Mesh, 0, m_Material, rendererDescription);
             
             m_CenterFlock = new NativeReference<float3>(float3.zero, Allocator.Persistent);
             m_NoiseOffsets = new NativeArray<float>(m_CubeCount, Allocator.Persistent);

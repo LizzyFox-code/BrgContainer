@@ -1,6 +1,6 @@
 {
   "name": "com.lizzyfox-code.brg-container",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "displayName": "BRG Container",
   "description": "A Batch Rendering Group Tool for Unity.",
   "_upm": {

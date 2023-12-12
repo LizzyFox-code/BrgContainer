@@ -36,7 +36,10 @@
             {
                 var visibleCountPerBatch = VisibleCountPerBatch[batchIndex];
                 if(visibleCountPerBatch == 0) // there is no any visible instances for this batch
+                {
+                    batchIndex++;
                     continue;
+                }
                 
                 var batchDrawCommand = new BatchDrawCommand
                 {

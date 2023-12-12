@@ -39,7 +39,10 @@
             {
                 var visibleCountPerBatch = VisibleCountPerBatch[batchIndex];
                 if (visibleCountPerBatch == 0) // there is no any visible instances for this batch
+                {
+                    batchIndex++;
                     continue;
+                }
 
                 var batchInstanceIndices = VisibleIndicesPerBatch[batchIndex];
                 UnsafeUtility.MemCpy((void*)((IntPtr) OutputDrawCommands->visibleInstances + visibleOffset * UnsafeUtility.SizeOf<int>()),

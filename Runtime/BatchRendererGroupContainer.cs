@@ -90,10 +90,10 @@
         /// <param name="material">A mesh material.</param>
         /// <param name="rendererDescription">A renderer description provides a rendering metadata.</param>
         /// <returns>Returns a batch handle that provides some API for write and upload instance data for the GPU.</returns>
-        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, ref RendererDescription rendererDescription)
+        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, in RendererDescription rendererDescription)
         {
             var graphicsBuffer = CreateGraphicsBuffer(BatchDescription.IsUBO, batchDescription.TotalBufferSize);
-            var rendererData = CreateRendererData(mesh, subMeshIndex, material, ref rendererDescription);
+            var rendererData = CreateRendererData(mesh, subMeshIndex, material, rendererDescription);
             var batchGroup = CreateBatchGroup(ref batchDescription, rendererData, graphicsBuffer.bufferHandle);
             
             var batchId = batchGroup[0];
@@ -188,12 +188,12 @@
             return batchGroup;
         }
 
-        private BatchRendererData CreateRendererData([NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, ref RendererDescription description)
+        private BatchRendererData CreateRendererData([NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, in RendererDescription description)
         {
             var meshId = m_BatchRendererGroup.RegisterMesh(mesh);
             var materialId = m_BatchRendererGroup.RegisterMaterial(material);
             
-            return new BatchRendererData(meshId, materialId, subMeshIndex, mesh.bounds.extents, ref description);
+            return new BatchRendererData(meshId, materialId, subMeshIndex, mesh.bounds.extents, description);
         }
 
         [BurstCompile]
