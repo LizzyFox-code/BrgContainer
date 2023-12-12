@@ -34,7 +34,7 @@
             var windowCount = batchGroup.GetWindowCount();
             var visibleOffset = drawRangeData.VisibleIndexOffset;
 
-            var batchIndex = drawRangeData.Begin;
+            var batchIndex = drawRangeData.BatchIndex;
             for (var i = 0; i < windowCount; i++)
             {
                 var visibleCountPerBatch = VisibleCountPerBatch[batchIndex];

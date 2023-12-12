@@ -279,9 +279,10 @@
             
             var countersHandle = JobHandleUnsafeUtility.CombineDependencies(batchJobHandles, batchCount);
 
+            var drawCommands = (BatchCullingOutputDrawCommands*) cullingoutput.drawCommands.GetUnsafePtr();
             var allocateOutputDrawCommandsJob = new AllocateOutputDrawCommandsJob
             {
-                OutputDrawCommands = (BatchCullingOutputDrawCommands*) cullingoutput.drawCommands.GetUnsafePtr(),
+                OutputDrawCommands = drawCommands,
                 Counters = drawCounters
             };
             var allocateOutputDrawCommandsHandle = allocateOutputDrawCommandsJob.ScheduleByRef(countersHandle);
@@ -291,7 +292,7 @@
             {
                 BatchGroups = batchGroups,
                 DrawRangeData = drawRangeData,
-                OutputDrawCommands = (BatchCullingOutputDrawCommands*) cullingoutput.drawCommands.GetUnsafePtr(),
+                OutputDrawCommands = drawCommands,
             };
             var createDrawRangesHandle = createDrawRangesJob.ScheduleParallelByRef(batchGroups.Length, 64, allocateOutputDrawCommandsHandle);
 
@@ -300,7 +301,7 @@
                 BatchGroups = batchGroups,
                 DrawRangeData = drawRangeData,
                 VisibleCountPerBatch = visibleCountPerBatch,
-                OutputDrawCommands = (BatchCullingOutputDrawCommands*) cullingoutput.drawCommands.GetUnsafePtr()
+                OutputDrawCommands = drawCommands
             };
             var createDrawCommandsHandle = createDrawCommandsJob.ScheduleParallelByRef(batchGroups.Length, 64, createDrawRangesHandle);
 
@@ -310,7 +311,7 @@
                 VisibleCountPerBatch = visibleCountPerBatch,
                 VisibleIndicesPerBatch = visibleIndicesPerBatch,
                 DrawRangesData = drawRangeData,
-                OutputDrawCommands = (BatchCullingOutputDrawCommands*) cullingoutput.drawCommands.GetUnsafePtr()
+                OutputDrawCommands = drawCommands
             };
 
             var resultHandle = copyVisibilityIndicesToArrayJob.ScheduleParallelByRef(batchGroups.Length, 32, createDrawCommandsHandle);

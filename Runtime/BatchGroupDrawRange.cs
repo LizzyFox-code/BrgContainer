@@ -10,6 +10,10 @@
         /// </summary>
         public int Begin;
         /// <summary>
+        /// The batch index (begin) in global array
+        /// </summary>
+        public int BatchIndex;
+        /// <summary>
         /// The global offset for this batch group
         /// </summary>
         public int IndexOffset;

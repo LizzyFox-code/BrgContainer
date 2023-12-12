@@ -47,7 +47,9 @@
                 for (var i = BatchGroupIndex + 1; i < BatchGroups.Length; i++)
                 {
                     ref var nextDrawRangeDataRef = ref UnsafeUtility.ArrayElementAsRef<BatchGroupDrawRange>(DrawRangesData.GetUnsafePtr(), i);
+                    
                     Interlocked.Decrement(ref nextDrawRangeDataRef.IndexOffset);
+                    Interlocked.Add(ref nextDrawRangeDataRef.BatchIndex, subBatchCount);
                 }
                 return;
             }
@@ -65,8 +67,10 @@
             for (var i = BatchGroupIndex + 1; i < BatchGroups.Length; i++) // prefix sum
             {
                 ref var nextDrawRangeDataRef = ref UnsafeUtility.ArrayElementAsRef<BatchGroupDrawRange>(DrawRangesData.GetUnsafePtr(), i);
+                
                 Interlocked.Add(ref nextDrawRangeDataRef.Begin, validSubBatchCount);
                 Interlocked.Add(ref nextDrawRangeDataRef.VisibleIndexOffset, visibleCountPerBatchGroup);
+                Interlocked.Add(ref nextDrawRangeDataRef.BatchIndex, subBatchCount);
             }
         }
     }
