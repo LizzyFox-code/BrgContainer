@@ -30,11 +30,11 @@
             var batchGroup = BatchGroups[index];
             var subBatchCount = batchGroup.GetWindowCount();
 
-            var dcIndex = drawRangeData.Begin;
+            var batchIndex = drawRangeData.Begin;
             var visibleOffset = drawRangeData.VisibleIndexOffset;
             for (var i = 0; i < subBatchCount; i++)
             {
-                var visibleCountPerBatch = VisibleCountPerBatch[index + i];
+                var visibleCountPerBatch = VisibleCountPerBatch[batchIndex];
                 if(visibleCountPerBatch == 0) // there is no any visible instances for this batch
                     continue;
                 
@@ -51,9 +51,9 @@
                     sortingPosition = 0
                 };
 
-                OutputDrawCommands->drawCommands[dcIndex] = batchDrawCommand;
+                OutputDrawCommands->drawCommands[batchIndex] = batchDrawCommand;
 
-                dcIndex++;
+                batchIndex++;
                 visibleOffset += visibleCountPerBatch;
             }
         }

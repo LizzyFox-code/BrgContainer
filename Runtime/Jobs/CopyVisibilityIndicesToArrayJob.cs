@@ -31,16 +31,17 @@
                 return; // there is no any visible batches
             
             var batchGroup = BatchGroups[index];
-            var subBatchCount = batchGroup.GetWindowCount();
+            var windowCount = batchGroup.GetWindowCount();
             var visibleOffset = drawRangeData.VisibleIndexOffset;
-            
-            for (var i = 0; i < subBatchCount; i++)
+
+            var batchIndex = drawRangeData.Begin;
+            for (var i = 0; i < windowCount; i++)
             {
-                var visibleCountPerBatch = VisibleCountPerBatch[index + i];
+                var visibleCountPerBatch = VisibleCountPerBatch[batchIndex];
                 if (visibleCountPerBatch == 0) // there is no any visible instances for this batch
                     continue;
 
-                var batchInstanceIndices = VisibleIndicesPerBatch[index + i];
+                var batchInstanceIndices = VisibleIndicesPerBatch[batchIndex];
                 UnsafeUtility.MemCpy((void*)((IntPtr) OutputDrawCommands->visibleInstances + visibleOffset * UnsafeUtility.SizeOf<int>()),
                     batchInstanceIndices.Indices, visibleCountPerBatch * UnsafeUtility.SizeOf<int>());
 
@@ -48,7 +49,8 @@
                 UnsafeUtility.Free(batchInstanceIndices.Indices, Allocator.TempJob);
                 batchInstanceIndices.Indices = null;
                 
-                VisibleIndicesPerBatch[index + i] = batchInstanceIndices;
+                VisibleIndicesPerBatch[batchIndex] = batchInstanceIndices;
+                batchIndex++;
             }
         }
     }
