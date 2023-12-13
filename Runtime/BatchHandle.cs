@@ -29,6 +29,7 @@
         private readonly FunctionPointer<IsBatchAliveDelegate> m_IsAliveCallback;
 
         public bool IsAlive => CheckIfIsAlive(m_ContainerId, m_BatchId);
+        public unsafe int InstanceCount => *m_InstanceCount;
 
         [ExcludeFromBurstCompatTesting("BatchHandle creating is unburstable")]
         internal unsafe BatchHandle(ContainerId containerId, BatchID batchId, NativeArray<float4> buffer, int* instanceCount, ref BatchDescription description, 

@@ -82,7 +82,7 @@
         }
 
         /// <summary>
-        /// Add a new batch with a description, mesh, material and a renderer description.
+        /// Add a new batch with description, mesh, material and renderer description.
         /// </summary>
         /// <param name="batchDescription">A batch description provides a batch metadata.</param>
         /// <param name="mesh">A mesh that will be rendering with this batch.</param>
@@ -104,7 +104,6 @@
                 ref batchDescription, m_UploadFunctionPointer, m_DestroyBatchFunctionPointer, m_IsBatchAliveFunctionPointer);
         }
 
-
         /// <summary>
         /// Remove the exist batch.
         /// </summary>
@@ -112,6 +111,22 @@
         public void RemoveBatch(in BatchHandle batchHandle)
         {
             DestroyBatchCallback(m_ContainerId, batchHandle.m_BatchId);
+        }
+
+        /// <summary>
+        /// Get batch data by a batch handle.
+        /// </summary>
+        /// <param name="batchHandle"></param>
+        /// <param name="batchDescription"></param>
+        /// <param name="batchRendererData"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public void GetBatchData(in BatchHandle batchHandle, out BatchDescription batchDescription, out BatchRendererData batchRendererData)
+        {
+            if(!m_Groups.TryGetValue(batchHandle.m_BatchId, out var batchGroup))
+                throw new InvalidOperationException("Batch handle is not alive.");
+
+            batchDescription = batchGroup.m_BatchDescription;
+            batchRendererData = batchGroup.BatchRendererData;
         }
 
         /// <summary>

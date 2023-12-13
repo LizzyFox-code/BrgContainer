@@ -58,6 +58,43 @@
         public readonly int TotalBufferSize;
 
         [ExcludeFromBurstCompatTesting("BatchDescription creating is unburstable")]
+        public unsafe BatchDescription(ref BatchDescription batchDescription, Allocator allocator)
+        {
+            MaxInstanceCount = batchDescription.MaxInstanceCount;
+            m_Allocator = allocator;
+            Length = batchDescription.Length;
+            
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            m_Safety = m_Allocator == Allocator.Temp ? AtomicSafetyHandle.GetTempMemoryHandle() : AtomicSafetyHandle.Create();
+            InitStaticSafetyId(ref m_Safety);
+            AtomicSafetyHandle.SetStaticSafetyId(ref m_Safety, m_StaticSafetyId);
+#endif
+            
+            m_MetadataValues = (UnsafeList<MetadataValue>*) UnsafeUtility.MallocTracked(
+                UnsafeUtility.SizeOf<UnsafeList<MetadataValue>>(), UnsafeUtility.AlignOf<UnsafeList<MetadataValue>>(),
+                m_Allocator, 0);
+            m_MetadataInfoMap = (UnsafeHashMap<int, MetadataInfo>*) UnsafeUtility.MallocTracked(
+                UnsafeUtility.SizeOf<UnsafeHashMap<int, MetadataInfo>>(),
+                UnsafeUtility.AlignOf<UnsafeHashMap<int, MetadataInfo>>(),
+                m_Allocator, 0);
+            
+            *m_MetadataValues = new UnsafeList<MetadataValue>(Length, m_Allocator);
+            (*m_MetadataValues).CopyFrom(*batchDescription.m_MetadataValues);
+            *m_MetadataInfoMap = new UnsafeHashMap<int, MetadataInfo>(Length, m_Allocator);
+            foreach (var pair in *batchDescription.m_MetadataInfoMap)
+            {
+                (*m_MetadataInfoMap).Add(pair.Key, pair.Value);
+            }
+
+            SizePerInstance = batchDescription.SizePerInstance;
+            AlignedWindowSize = batchDescription.AlignedWindowSize;
+            MaxInstancePerWindow = batchDescription.MaxInstancePerWindow;
+            WindowCount = batchDescription.WindowCount;
+            WindowSize = batchDescription.WindowSize;
+            TotalBufferSize = batchDescription.TotalBufferSize;
+        }
+
+        [ExcludeFromBurstCompatTesting("BatchDescription creating is unburstable")]
         public unsafe BatchDescription(int maxInstanceCount, Allocator allocator)
         {
             MaxInstanceCount = maxInstanceCount;
@@ -216,6 +253,7 @@
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.Release(m_Safety);
+                m_Safety = default;
 #endif
                 
                 (*m_MetadataValues).Dispose();
@@ -262,6 +300,7 @@
                 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.Release(m_Safety);
+                m_Safety = default;
 #endif
                 
                 m_MetadataValues = null;
@@ -275,6 +314,12 @@
             m_MetadataInfoMap = null;
             
             return inputDeps;
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static BatchDescription CopyFrom(ref BatchDescription batchDescription, Allocator allocator)
+        {
+            return new BatchDescription(ref batchDescription, allocator);
         }
         
         private unsafe void RegisterMetadata(int sizeInBytes, int propertyId, ref int metadataOffset, bool isPerInstance = true)
