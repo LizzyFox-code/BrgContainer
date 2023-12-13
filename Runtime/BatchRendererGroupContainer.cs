@@ -228,6 +228,7 @@
                 {
                     var instanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(b);
                     var visibleIndices = new NativeList<int>(instanceCountPerBatch, Allocator.TempJob);
+                    
                     var cullingJob = new CullingBatchInstancesJob
                     {
                         CullingPlanes = cullingcontext.cullingPlanes,

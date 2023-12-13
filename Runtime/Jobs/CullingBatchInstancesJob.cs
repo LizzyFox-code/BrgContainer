@@ -1,6 +1,5 @@
 ﻿namespace BrgContainer.Runtime.Jobs
 {
-    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using Unity.Burst;
     using Unity.Collections;
@@ -22,36 +21,17 @@
         
         public bool Execute(int index)
         {
-            var objectToWorld = ObjectToWorld[index + DataOffset].fullMatrix;
-
-            var boundingBoxMin = math.mul(objectToWorld, new float4(-Extents, 1.0f));
-            var boundingBoxMax = math.mul(objectToWorld, new float4(Extents, 1.0f));
-
-            return IsFrustumContainsBox(boundingBoxMin.xyz, boundingBoxMax.xyz);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsFrustumContainsBox(float3 min, float3 max)
-        {
-            float3 position;
+            var position = ObjectToWorld[index + DataOffset].GetPosition();
             for (var i = 0; i < CullingPlanes.Length; i++)
             {
-                var plane = CullingPlanes[i];
-                position.x = plane.normal.x > 0 ? max.x : min.x;
-                position.y = plane.normal.y > 0 ? max.y : min.y;
-                position.z = plane.normal.z > 0 ? max.z : min.z;
+                var normal = CullingPlanes[i].normal;
+                var distance = CullingPlanes[i].distance;
 
-                if (GetDistanceToPlane(plane.normal, plane.distance, position) < 0)
+                if (math.dot(Extents, math.abs(normal)) + math.dot(normal, position) + distance <= 0.0f)
                     return false;
             }
 
             return true;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float GetDistanceToPlane(float3 normal, float distance, float3 position)
-        {
-            return math.dot(normal, position) + distance;
         }
     }
 }
