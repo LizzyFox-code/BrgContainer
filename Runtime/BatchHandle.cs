@@ -53,7 +53,7 @@
         /// <returns>Returns <see cref="BatchInstanceDataBuffer"/> instance.</returns>
         public unsafe BatchInstanceDataBuffer AsInstanceDataBuffer()
         {
-            return new BatchInstanceDataBuffer(m_Buffer, m_Description.m_MetadataInfoMap,
+            return new BatchInstanceDataBuffer(m_Buffer, m_Description.m_MetadataInfoMap, m_Description.m_MetadataValues,
                 m_InstanceCount, m_Description.MaxInstanceCount, m_Description.MaxInstancePerWindow, m_Description.AlignedWindowSize / 16);
         }
 
@@ -76,19 +76,19 @@
             if (itemInLastBatch <= 0)
                 return;
             
-            var windowOffsetInFloat4 = (uint)(lastBatchId * m_Description.AlignedWindowSize / 16);
+            var windowOffsetInFloat4 = lastBatchId * m_Description.AlignedWindowSize / 16;
 
             var offset = 0;
             for (var i = 0; i < m_Description.Length; i++)
             {
                 var metadataValue = m_Description[i];
                 var metadataInfo = m_Description.GetMetadataInfo(metadataValue.NameID);
-                var startIndex = (int) (windowOffsetInFloat4 + m_Description.MaxInstancePerWindow * offset);
-                var sizeInFloat = metadataInfo.Size / 16;
-                offset += sizeInFloat;
+                var startIndex = windowOffsetInFloat4 + m_Description.MaxInstancePerWindow * offset;
+                var sizeInFloat4 = metadataInfo.Size / 16;
+                offset += sizeInFloat4;
 
                 Upload(m_ContainerId, m_BatchId, m_Buffer, startIndex, startIndex,
-                    itemInLastBatch * sizeInFloat);
+                    itemInLastBatch * sizeInFloat4);
             }
 
             *m_InstanceCount = instanceCount;

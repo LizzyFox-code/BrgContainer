@@ -31,7 +31,7 @@
         public static readonly bool IsUBO = BatchRendererGroup.BufferTarget == BatchBufferTarget.ConstantBuffer;
 
         [NativeDisableUnsafePtrRestriction]
-        private unsafe UnsafeList<MetadataValue>* m_MetadataValues;
+        internal unsafe UnsafeList<MetadataValue>* m_MetadataValues;
         [NativeDisableUnsafePtrRestriction]
         internal unsafe UnsafeHashMap<int, MetadataInfo>* m_MetadataInfoMap;
         
