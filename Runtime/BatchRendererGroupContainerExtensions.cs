@@ -31,5 +31,22 @@
             var batchDescription = new BatchDescription(maxInstanceCount, materialProperties, Allocator.Persistent);
             return container.AddBatch(ref batchDescription, mesh, subMeshIndex, material, rendererDescription);
         }
+
+        /// <summary>
+        /// Add a new batch.
+        /// </summary>
+        /// <param name="container"></param>
+        /// <param name="maxInstanceCount"></param>
+        /// <param name="mesh"></param>
+        /// <param name="subMeshIndex"></param>
+        /// <param name="material"></param>
+        /// <param name="rendererDescription"></param>
+        /// <returns></returns>
+        public static BatchHandle AddBatch(this BatchRendererGroupContainer container, int maxInstanceCount, [NotNull]Mesh mesh, 
+            ushort subMeshIndex, [NotNull]Material material, in RendererDescription rendererDescription)
+        {
+            var batchDescription = new BatchDescription(maxInstanceCount, Allocator.Persistent);
+            return container.AddBatch(ref batchDescription, mesh, subMeshIndex, material, rendererDescription);
+        }
     }
 }

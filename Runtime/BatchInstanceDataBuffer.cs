@@ -5,6 +5,7 @@
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using System.Threading;
+    using Unity.Burst;
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
     using Unity.Mathematics;
@@ -108,17 +109,18 @@
             Interlocked.Exchange(ref *m_InstanceCountReference, instanceCount);
         }
 
-        public unsafe void LeftShift(int from, int offset)
+        [BurstCompile]
+        public unsafe void LeftShift(int from, int count)
         {
             if (from >= InstanceCount)
             {
-                InstanceCount = math.max(0, InstanceCount - offset);
+                InstanceCount = math.max(0, InstanceCount - count);
                 return;
             }
 
             var windowCount = (InstanceCount + m_MaxInstancePerWindow - 1) / m_MaxInstancePerWindow;
             
-            var startIndex = math.max(from - offset, 0);
+            var startIndex = math.max(from - count, 0);
             var startWindowId = Math.DivRem(startIndex, m_MaxInstancePerWindow, out var startI);
 
             var endIndex = from;
@@ -128,8 +130,11 @@
             {
                 var startWindowOffset = startWindowId * m_WindowSizeInFloat4;
                 var endWindowOffset = endWindowId * m_WindowSizeInFloat4;
-                
-                var copyCount = math.min(m_MaxInstancePerWindow - startI, m_MaxInstancePerWindow - endI);
+
+                var startInstancePerWindow = startWindowId == windowCount - 1 ? m_MaxInstancePerWindow - (windowCount * m_MaxInstancePerWindow - InstanceCount) : m_MaxInstancePerWindow;
+                var endInstancePerWindow = endWindowId == windowCount - 1 ? m_MaxInstancePerWindow - (windowCount * m_MaxInstancePerWindow - InstanceCount) : m_MaxInstancePerWindow;
+
+                var copyCount = math.min(startInstancePerWindow - startI, endInstancePerWindow - endI);
 
                 var metadataOffset = 0;
                 for (var metadataIndex = 0; metadataIndex < (*m_MetadataValues).Length; metadataIndex++)
@@ -158,7 +163,7 @@
                 endWindowId = Math.DivRem(endIndex, m_MaxInstancePerWindow, out endI);
             }
             
-            InstanceCount = math.max(0, InstanceCount - offset);
+            InstanceCount = math.max(0, InstanceCount - count);
         }
 
         public bool Equals(BatchInstanceDataBuffer other)
