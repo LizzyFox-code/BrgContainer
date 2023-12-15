@@ -12,7 +12,7 @@
     {
         [WriteOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<BatchInstanceIndices> VisibleIndicesPerBatch;
-        [WriteOnly]
+        [NativeDisableContainerSafetyRestriction]
         public NativeList<int> VisibleIndices;
         [WriteOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<int> VisibleCountPerChunk;

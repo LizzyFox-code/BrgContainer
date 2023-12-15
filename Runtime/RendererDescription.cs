@@ -56,7 +56,7 @@
 
         public override int GetHashCode()
         {
-            return HashCode.Combine((int) ShadowCastingMode, ReceiveShadows, StaticShadowCaster, RenderingLayerMask, Layer, (int) MotionMode);
+            return HashCode.Combine(ShadowCastingMode, ReceiveShadows, StaticShadowCaster, RenderingLayerMask, Layer, MotionMode);
         }
 
         public static bool operator ==(RendererDescription left, RendererDescription right)
