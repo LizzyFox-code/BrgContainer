@@ -35,13 +35,17 @@
 
         private readonly ContainerId m_ContainerId;
 
-        private readonly FunctionPointer<UploadDelegate> m_UploadFunctionPointer;
-        private readonly FunctionPointer<DestroyBatchDelegate> m_DestroyBatchFunctionPointer;
-        private readonly FunctionPointer<IsBatchAliveDelegate> m_IsBatchAliveFunctionPointer;
+        private static readonly FunctionPointer<UploadDelegate> m_UploadFunctionPointer;
+        private static readonly FunctionPointer<DestroyBatchDelegate> m_DestroyBatchFunctionPointer;
+        private static readonly FunctionPointer<IsBatchAliveDelegate> m_IsBatchAliveFunctionPointer;
 
         static BatchRendererGroupContainer()
         {
             m_Containers = new Dictionary<ContainerId, BatchRendererGroupContainer>();
+            
+            m_UploadFunctionPointer = new FunctionPointer<UploadDelegate>(Marshal.GetFunctionPointerForDelegate(new UploadDelegate(UploadCallback)));
+            m_DestroyBatchFunctionPointer = new FunctionPointer<DestroyBatchDelegate>(Marshal.GetFunctionPointerForDelegate(new DestroyBatchDelegate(DestroyBatchCallback)));
+            m_IsBatchAliveFunctionPointer = new FunctionPointer<IsBatchAliveDelegate>(Marshal.GetFunctionPointerForDelegate(new IsBatchAliveDelegate(IsAliveCallback)));
         }
 
         /// <summary>
@@ -63,11 +67,7 @@
             m_BatchRendererGroup = new BatchRendererGroup(CullingCallback, IntPtr.Zero);
             m_GraphicsBuffers = new Dictionary<BatchID, GraphicsBuffer>();
             m_Groups = new NativeHashMap<BatchID, BatchGroup>(1, Allocator.Persistent);
-            
-            m_UploadFunctionPointer = new FunctionPointer<UploadDelegate>(Marshal.GetFunctionPointerForDelegate(new UploadDelegate(UploadCallback)));
-            m_DestroyBatchFunctionPointer = new FunctionPointer<DestroyBatchDelegate>(Marshal.GetFunctionPointerForDelegate(new DestroyBatchDelegate(DestroyBatchCallback)));
-            m_IsBatchAliveFunctionPointer = new FunctionPointer<IsBatchAliveDelegate>(Marshal.GetFunctionPointerForDelegate(new IsBatchAliveDelegate(IsAliveCallback)));
-            
+
             m_Containers.Add(m_ContainerId, this);
         }
 
