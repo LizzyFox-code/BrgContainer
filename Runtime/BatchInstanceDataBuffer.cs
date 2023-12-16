@@ -64,6 +64,11 @@
         /// <typeparam name="T">The blittable type.</typeparam>
         public unsafe void WriteInstanceData<T>(int index, int propertyId, T itemData) where T : unmanaged
         {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if(index < 0 || index >= m_MaxInstanceCount)
+                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {m_MaxInstanceCount - 1} (include).");
+#endif
+            
             var windowId = Math.DivRem(index, m_MaxInstancePerWindow, out var i);
             var windowOffsetInFloat4 = windowId * m_WindowSizeInFloat4;
             var metadataInfo = (*m_MetadataInfo)[propertyId];
@@ -83,6 +88,11 @@
         /// <returns>Returns instance data by the property id.</returns>
         public unsafe T ReadInstanceData<T>(int index, int propertyId) where T : unmanaged
         {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if(index < 0 || index >= m_MaxInstanceCount)
+                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {m_MaxInstanceCount - 1} (include).");
+#endif
+            
             var windowId = Math.DivRem(index, m_MaxInstancePerWindow, out var i);
             var windowOffsetInFloat4 = windowId * m_WindowSizeInFloat4;
             var metadataInfo = (*m_MetadataInfo)[propertyId];
