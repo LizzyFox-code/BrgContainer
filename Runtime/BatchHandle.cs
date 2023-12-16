@@ -77,6 +77,8 @@
                 throw new InvalidOperationException("This batch already has been destroyed.");
 #endif
             
+            *m_InstanceCount = instanceCount;
+            
             var completeWindows = instanceCount / m_Description.MaxInstancePerWindow;
             if (completeWindows > 0)
             {
@@ -104,8 +106,6 @@
                 Upload(m_ContainerId, m_BatchId, m_Buffer, startIndex, startIndex,
                     itemInLastBatch * sizeInFloat4);
             }
-
-            *m_InstanceCount = instanceCount;
         }
         
         /// <summary>
