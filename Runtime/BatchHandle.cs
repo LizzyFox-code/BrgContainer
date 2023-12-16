@@ -1,5 +1,6 @@
 ﻿namespace BrgContainer.Runtime
 {
+    using System;
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using Unity.Burst;
@@ -53,6 +54,11 @@
         /// <returns>Returns <see cref="BatchInstanceDataBuffer"/> instance.</returns>
         public unsafe BatchInstanceDataBuffer AsInstanceDataBuffer()
         {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if(!IsAlive)
+                throw new InvalidOperationException("This batch has been destroyed.");
+#endif
+            
             return new BatchInstanceDataBuffer(m_Buffer, m_Description.m_MetadataInfoMap, m_Description.m_MetadataValues,
                 m_InstanceCount, m_Description.MaxInstanceCount, m_Description.MaxInstancePerWindow, m_Description.AlignedWindowSize / 16);
         }
@@ -63,6 +69,14 @@
         /// <param name="instanceCount"></param>
         public unsafe void Upload(int instanceCount)
         {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if(instanceCount < 0 || instanceCount > m_Description.MaxInstanceCount)
+                throw new ArgumentOutOfRangeException($"{nameof(instanceCount)} must be from 0 to {m_Description.MaxInstanceCount}.");
+            
+            if(!IsAlive)
+                throw new InvalidOperationException("This batch already has been destroyed.");
+#endif
+            
             var completeWindows = instanceCount / m_Description.MaxInstancePerWindow;
             if (completeWindows > 0)
             {
@@ -108,6 +122,11 @@
         [ExcludeFromBurstCompatTesting("BatchHandle destroying is unburstable")]
         public void Destroy()
         {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if(!IsAlive)
+                throw new InvalidOperationException("This batch already has been destroyed.");
+#endif
+            
             Destroy(m_ContainerId, m_BatchId);
         }
         
