@@ -230,7 +230,7 @@
             var visibleCountPerBatch = new NativeArray<int>(batchCount, Allocator.TempJob);
 
             var offset = 0;
-            var batchJobHandles = stackalloc JobHandle[batchCount];
+            var batchJobHandles = stackalloc JobHandle[batchGroups.Length];
             for (var i = 0; i < batchGroups.Length; i++)
             {
                 var batchGroup = batchGroups[i];
@@ -268,7 +268,7 @@
                 batchJobHandles[i] = objectToWorld.Dispose(batchHandle);
             }
 
-            var cullingHandle = JobHandleUnsafeUtility.CombineDependencies(batchJobHandles, batchCount);
+            var cullingHandle = JobHandleUnsafeUtility.CombineDependencies(batchJobHandles, batchGroups.Length);
 
             var drawCounters = new NativeArray<int>(3, Allocator.TempJob);
             var drawRangeData = new NativeArray<BatchGroupDrawRange>(batchGroups.Length, Allocator.TempJob);
@@ -293,7 +293,7 @@
                 batchJobHandles[i] = computeDrawCountersJob.ScheduleByRef(cullingHandle);
             }
             
-            var countersHandle = JobHandleUnsafeUtility.CombineDependencies(batchJobHandles, batchCount);
+            var countersHandle = JobHandleUnsafeUtility.CombineDependencies(batchJobHandles, batchGroups.Length);
 
             var drawCommands = (BatchCullingOutputDrawCommands*) cullingoutput.drawCommands.GetUnsafePtr();
             var allocateOutputDrawCommandsJob = new AllocateOutputDrawCommandsJob
