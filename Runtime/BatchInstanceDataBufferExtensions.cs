@@ -50,6 +50,14 @@
             buffer.WriteInstanceData(index, m_ObjectToWorldPropertyId.Data, matrix);
             buffer.WriteInstanceData(index, m_WorldToObjectPropertyId.Data, matrix.inverse);
         }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetTRS(this BatchInstanceDataBuffer buffer, int index, float3 position, quaternion rotation, float scale)
+        {
+            var matrix = PackedMatrix.TRS(position, rotation, new float3(scale, scale, scale));
+            buffer.WriteInstanceData(index, m_ObjectToWorldPropertyId.Data, matrix);
+            buffer.WriteInstanceData(index, m_WorldToObjectPropertyId.Data, matrix.inverse);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float4x4 GetTRS(this BatchInstanceDataBuffer buffer, int index)
