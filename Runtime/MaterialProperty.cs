@@ -1,5 +1,7 @@
 ﻿namespace BrgContainer.Runtime
 {
+    using System;
+    using System.Diagnostics;
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using JetBrains.Annotations;
@@ -7,7 +9,8 @@
     using UnityEngine;
 
     [StructLayout(LayoutKind.Sequential)]
-    public readonly struct MaterialProperty
+    [DebuggerDisplay("PropertyId = {PropertyId}, SizeInBytes = {SizeInBytes}, IsPerInstance = {IsPerInstance}")]
+    public readonly struct MaterialProperty : IEquatable<MaterialProperty>
     {
         public readonly int PropertyId;
         public readonly int SizeInBytes;
@@ -35,6 +38,31 @@
         public static MaterialProperty Create<T>([NotNull]string propertyName, bool isPerInstance = true) where T : unmanaged
         {
             return new MaterialProperty(UnsafeUtility.SizeOf<T>(), propertyName, isPerInstance);
+        }
+
+        public bool Equals(MaterialProperty other)
+        {
+            return PropertyId == other.PropertyId && SizeInBytes == other.SizeInBytes && IsPerInstance == other.IsPerInstance;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is MaterialProperty other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(PropertyId, SizeInBytes, IsPerInstance);
+        }
+
+        public static bool operator ==(MaterialProperty left, MaterialProperty right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(MaterialProperty left, MaterialProperty right)
+        {
+            return !left.Equals(right);
         }
     }
 }

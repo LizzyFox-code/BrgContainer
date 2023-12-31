@@ -227,9 +227,14 @@
             return (*m_MetadataInfoMap)[propertyId];
         }
 
-        public readonly IEnumerator<MetadataValue> GetEnumerator()
+        public readonly Enumerator GetEnumerator()
         {
             return new Enumerator(this);
+        }
+        
+        IEnumerator<MetadataValue> IEnumerable<MetadataValue>.GetEnumerator()
+        {
+            return GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()

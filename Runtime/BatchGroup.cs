@@ -209,9 +209,14 @@
             return inputDeps;
         }
 
-        public readonly IEnumerator<BatchID> GetEnumerator()
+        public readonly Enumerator GetEnumerator()
         {
             return new Enumerator(this);
+        }
+        
+        IEnumerator<BatchID> IEnumerable<BatchID>.GetEnumerator()
+        {
+            return GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()

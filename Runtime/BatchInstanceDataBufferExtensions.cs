@@ -22,7 +22,7 @@
         private sealed class WorldToObjectPropertyId { }
 
         [BurstDiscard]
-        [RuntimeInitializeOnLoadMethod]
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void OnDomainReload()
         {
             m_ObjectToWorldPropertyId.Data = Shader.PropertyToID("unity_ObjectToWorld");
