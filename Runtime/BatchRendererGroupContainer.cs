@@ -1,6 +1,7 @@
 ﻿namespace BrgContainer.Runtime
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using System.Runtime.InteropServices;
@@ -25,7 +26,7 @@
 #endif
     public sealed class BatchRendererGroupContainer : IDisposable
     {
-        private static readonly Dictionary<ContainerId, BatchRendererGroupContainer> m_Containers;
+        private static readonly ConcurrentDictionary<ContainerId, BatchRendererGroupContainer> m_Containers;
         private static long m_ContainerGlobalId;
         
         private readonly BatchRendererGroup m_BatchRendererGroup;
@@ -41,7 +42,7 @@
 
         static BatchRendererGroupContainer()
         {
-            m_Containers = new Dictionary<ContainerId, BatchRendererGroupContainer>();
+            m_Containers = new ConcurrentDictionary<ContainerId, BatchRendererGroupContainer>();
             
             m_UploadFunctionPointer = new FunctionPointer<UploadDelegate>(Marshal.GetFunctionPointerForDelegate(new UploadDelegate(UploadCallback)));
             m_DestroyBatchFunctionPointer = new FunctionPointer<DestroyBatchDelegate>(Marshal.GetFunctionPointerForDelegate(new DestroyBatchDelegate(DestroyBatchCallback)));
@@ -68,7 +69,7 @@
             m_GraphicsBuffers = new Dictionary<BatchID, GraphicsBuffer>();
             m_Groups = new NativeHashMap<BatchID, BatchGroup>(1, Allocator.Persistent);
 
-            m_Containers.Add(m_ContainerId, this);
+            m_Containers.TryAdd(m_ContainerId, this);
         }
 
         /// <summary>
@@ -148,7 +149,7 @@
             
             m_GraphicsBuffers.Clear();
 
-            m_Containers.Remove(m_ContainerId);
+            m_Containers.TryRemove(m_ContainerId, out _);
         }
         
         [AOT.MonoPInvokeCallback(typeof(UploadDelegate))]
