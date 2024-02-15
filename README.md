@@ -7,7 +7,10 @@ BRG is the perfect tool to:
 
 More information about BRG - https://docs.unity3d.com/Manual/batch-renderer-group.html.
 
-The Unity **Batch Rendering Group Tool** provides a high-level API for instancing data reading and writing. It supports UBO and SSBO buffer types, so it can be used for GLES. Current version of tool has only **Frustum culling**.
+The **Brg Container** provides high-level API for instancing data reading and writing. It supports UBO and SSBO buffer types, so it can be used for GLES.
+
+Supports types of culling:
+ - Frustum culling
 
 ## Dependencies
  - Unity Mathematics: 1.2.6
@@ -16,40 +19,43 @@ The Unity **Batch Rendering Group Tool** provides a high-level API for instancin
 
 ## How to install
 From UPM:
- - install package from git URL (https://github.com/LizzyFox-code/BrgContainer)
- - install package from disk: download repo as zip archive, unpack and select package.json file
+ - install the package from git URL (https://github.com/LizzyFox-code/BrgContainer)
+ - install the package from disk: download repo as zip archive, unpack and select the package.json file
+
+## Samples
+ - **Hello World** is a simple sample. It shows how to create the Brg Container and change data for each instance in a Job.
 
 ## Usage
-#### Create a BatchRendererGroupContainer
+#### Create the BatchRendererGroupContainer
 First, we need to create the **BatchRendererGroupContainer** and set global bounds.
 ```c#
 var bounds = new Bounds(new Vector3(0, 0, 0), new Vector3(1048576.0f, 1048576.0f, 1048576.0f));
 m_BrgContainer = new BatchRendererGroupContainer(bounds);
 ```
 
-#### Create a material properties description
-For each batch we need to describe material properties (type and property id). A property id of material property can be got by Shader.PropertyToID method.
-Please note that material properties description needs only for batch description creating, so we need to dispose it.
+#### Create the material properties description
+For each batch we need to describe material properties (type and property id). A property id of material property can be get by Shader.PropertyToID method.
+Please note, the material properties description needs only for batch description creating, so we need to dispose it.
 
-P.S.: a batch contains an objectToWorld and a worldToObject matrices by default.
+P.S.: the batch contains 'objectToWorld' and 'worldToObject' matrices by default.
 ```c#
-// for example let's create description of _BaseColor material property.
-var materialProperties = new NativeArray<MaterialProperty>(1, Allocator.Temp)
+// for example let's create a description of the _BaseColor material property.
+using var materialProperties = new NativeArray<MaterialProperty>(1, Allocator.Temp)
 {
      [0] = MaterialProperty.Create<Color>(m_BaseColorPropertyId)
 };
 ```
 
-#### Create a batch description
-After that, we need create a batch description that needs max instance count and a material properties description.
+#### Create the batch description
+After that, we need to create the batch description that needs max instance count and the material properties description.
 ```c#
 // for example let's create description of _BaseColor material property.
 var batchDescription = new BatchDescription(m_CubeCount, materialProperties, Allocator.Persistent);
 materialProperties.Dispose(); // dispose the material properties description
 ```
 
-#### Create a renderer description
-Renderer description contains some rendering properties, e.g. ShadowCastingMode, ReceiveShadows or MotionMode property.
+#### Create the renderer description
+The renderer description contains some rendering properties, e.g. 'ShadowCastingMode', 'ReceiveShadows' or 'MotionMode' property.
 ```c#
 var rendererDescription = new RendererDescription
 {
@@ -64,17 +70,17 @@ var rendererDescription = new RendererDescription
 
 #### Add the batch to the BRG container
 ```c#
-// After batch adding we get a batch handle.
+// Add the batch to the container and get a batch handle.
 m_BatchHandle = m_BrgContainer.AddBatch(ref batchDescription, m_Mesh, 0, m_Material, ref rendererDescription);
 ```
 
-#### A batch handle
-A batch handle provides some API that allow:
- - get batch instance data buffer
+#### The batch handle
+The batch handle provides some API:
+ - get a batch instance data buffer
  - upload instance data for GPU
- - destroy batch
+ - destroy a batch
 
-**Get batch instance data**:
+**Get the batch instance data**:
 ```c#
 var dataBuffer = m_BatchHandle.AsInstanceDataBuffer();
 ```
@@ -85,18 +91,18 @@ m_BatchHandle.Upload(); // or
 m_BatchHandle.Upload(currentInstanceCount); // set and upload currentInstanceCount instance count
 ```
 
-**Destroy batch and remove it from BRG Container**:
+**Destroy the batch and remove it from the BRG Container**:
 ```c#
 m_BatchHandle.Destroy();
 ```
 
-#### A batch instance data buffer
-A batch instance data buffer (BatchInstanceDataBuffer) provides some API and allow:
+#### The batch instance data buffer
+The batch instance data buffer (BatchInstanceDataBuffer) provides some API:
  - read instance data by index and material property id
  - write instance data by index and material property id
  - set current instance count (by default it is zero)
 
-P.S.: A batch instance data buffer supports of a Burst package.
+P.S.: The batch instance data buffer supports of the Burst package.
 
 **Read instance data**:
 ```c#
@@ -134,7 +140,7 @@ dataBuffer.SetVector(i, m_SomeVectorPropertyId, new float4(1.0f, 0.5f, 1.3f));
 ```
 
 #### Packed Matrix
-For this tool we need use a **PackedMatrix** instead **Matrix4x4** or **float4x4**.
+For this tool we need to use the **PackedMatrix** instead the **Matrix4x4** or the **float4x4**.
 
 <p align="center">
 <img src="docs~/images/brg_matrices.jpg" title="BRG matrix format">
