@@ -4,6 +4,7 @@
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
+    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using System.Threading;
     using Jobs;
@@ -91,10 +92,25 @@
         /// <param name="material">A mesh material.</param>
         /// <param name="rendererDescription">A renderer description provides a rendering metadata.</param>
         /// <returns>Returns a batch handle that provides some API for write and upload instance data for the GPU.</returns>
-        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, in RendererDescription rendererDescription)
+        public BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull] Mesh mesh, ushort subMeshIndex, [NotNull] Material material, in RendererDescription rendererDescription)
+        {
+            return AddBatch(ref batchDescription, mesh, subMeshIndex, material, float3.zero, in rendererDescription);
+        }
+
+        /// <summary>
+        /// Add a new batch with description, mesh, material and renderer description.
+        /// </summary>
+        /// <param name="batchDescription">A batch description provides a batch metadata.</param>
+        /// <param name="mesh">A mesh that will be rendering with this batch.</param>
+        /// <param name="subMeshIndex">A subMesh index for a mesh.</param>
+        /// <param name="material">A mesh material.</param>
+        /// <param name="extentsOffset"></param>
+        /// <param name="rendererDescription">A renderer description provides a rendering metadata.</param>
+        /// <returns>Returns a batch handle that provides some API for write and upload instance data for the GPU.</returns>
+        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, float3 extentsOffset, in RendererDescription rendererDescription)
         {
             var graphicsBuffer = CreateGraphicsBuffer(BatchDescription.IsUBO, batchDescription.TotalBufferSize);
-            var rendererData = CreateRendererData(mesh, subMeshIndex, material, rendererDescription);
+            var rendererData = CreateRendererData(mesh, subMeshIndex, material, extentsOffset, rendererDescription);
             var batchGroup = CreateBatchGroup(ref batchDescription, rendererData, graphicsBuffer.bufferHandle);
             
             var batchId = batchGroup[0];
@@ -187,7 +203,8 @@
             return container.m_Groups.ContainsKey(batchId);
         }
 
-        private GraphicsBuffer CreateGraphicsBuffer(bool isUbo, int bufferSize)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static GraphicsBuffer CreateGraphicsBuffer(bool isUbo, int bufferSize)
         {
             var target = isUbo ? GraphicsBuffer.Target.Constant : GraphicsBuffer.Target.Raw;
             var count = isUbo ? bufferSize / 16 : bufferSize / 4;
@@ -204,12 +221,12 @@
             return batchGroup;
         }
 
-        private BatchRendererData CreateRendererData([NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, in RendererDescription description)
+        private BatchRendererData CreateRendererData([NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, float3 extentsOffset, in RendererDescription description)
         {
             var meshId = m_BatchRendererGroup.RegisterMesh(mesh);
             var materialId = m_BatchRendererGroup.RegisterMaterial(material);
             
-            return new BatchRendererData(meshId, materialId, subMeshIndex, mesh.bounds.extents, description);
+            return new BatchRendererData(meshId, materialId, subMeshIndex, new float3(mesh.bounds.extents) + extentsOffset, description);
         }
 
         [BurstCompile]
