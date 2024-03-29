@@ -6,7 +6,7 @@
     using Unity.Jobs;
     using Unity.Mathematics;
     using UnityEngine;
-
+    
     [StructLayout(LayoutKind.Sequential)]
     [BurstCompile(OptimizeFor = OptimizeFor.Performance, FloatMode = FloatMode.Fast, CompileSynchronously = true, FloatPrecision = FloatPrecision.Low, DisableSafetyChecks = true)]
     internal struct CullingBatchInstancesJob : IJobFilter
@@ -21,13 +21,22 @@
         
         public bool Execute(int index)
         {
-            var position = ObjectToWorld[index + DataOffset].GetPosition();
+            var matrix = ObjectToWorld[index + DataOffset];
+            var aabb = new AABB
+            {
+                Center = float3.zero,
+                Extents = Extents
+            };
+            aabb = AABB.Transform(matrix.fullMatrix, aabb);
+ 
             for (var i = 0; i < CullingPlanes.Length; i++)
             {
-                var normal = CullingPlanes[i].normal;
-                var distance = CullingPlanes[i].distance;
+                var plane = CullingPlanes[i];
+                var normal = plane.normal;
+                var distance = math.dot(normal, aabb.Center) + plane.distance;
+                var radius = math.dot(aabb.Extents, math.abs(normal));
 
-                if (math.dot(Extents, math.abs(normal)) + math.dot(normal, position) + distance <= 0.0f)
+                if (distance + radius <= 0)
                     return false;
             }
 

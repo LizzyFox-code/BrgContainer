@@ -320,13 +320,13 @@
                 Counters = drawCounters
             };
             var allocateOutputDrawCommandsHandle = allocateOutputDrawCommandsJob.ScheduleByRef(countersHandle);
-            allocateOutputDrawCommandsHandle = drawCounters.Dispose(allocateOutputDrawCommandsHandle); 
+            allocateOutputDrawCommandsHandle = drawCounters.Dispose(allocateOutputDrawCommandsHandle);
 
             var createDrawRangesJob = new CreateDrawRangesJob
             {
                 BatchGroups = batchGroups,
                 DrawRangeData = drawRangeData,
-                OutputDrawCommands = drawCommands,
+                OutputDrawCommands = drawCommands
             };
             var createDrawRangesHandle = createDrawRangesJob.ScheduleParallelByRef(batchGroups.Length, 64, allocateOutputDrawCommandsHandle);
 
