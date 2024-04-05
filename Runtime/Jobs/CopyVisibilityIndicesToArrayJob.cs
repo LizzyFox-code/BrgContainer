@@ -16,7 +16,7 @@
         public NativeArray<BatchGroup> BatchGroups;
         [ReadOnly]
         public NativeArray<int> VisibleCountPerBatch;
-        public NativeArray<BatchInstanceIndices> VisibleIndicesPerBatch;
+        public NativeArray<BatchInstanceData> VisibleIndicesPerBatch;
         [ReadOnly]
         public NativeArray<BatchGroupDrawRange> DrawRangesData;
 

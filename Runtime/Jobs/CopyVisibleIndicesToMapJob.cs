@@ -11,7 +11,7 @@
     internal struct CopyVisibleIndicesToMapJob : IJob
     {
         [WriteOnly, NativeDisableContainerSafetyRestriction]
-        public NativeArray<BatchInstanceIndices> VisibleIndicesPerBatch;
+        public NativeArray<BatchInstanceData> VisibleIndicesPerBatch;
         
         [NativeDisableContainerSafetyRestriction]
         public NativeArray<int> VisibleIndices;
@@ -25,10 +25,12 @@
             if(VisibleIndices.Length == 0)
                 return;
             
-            var instanceIndices = new BatchInstanceIndices
+            var instanceIndices = new BatchInstanceData
             {
-                Indices = (int*)VisibleIndices.GetUnsafePtr() // no data copy, only ptr
+                Indices = (int*)VisibleIndices.GetUnsafePtr(), // no data copy, only ptr
             };
+            
+            instanceIndices.InstanceCountPerLod[]
             
             VisibleIndicesPerBatch[BatchIndex] = instanceIndices;
             VisibleCountPerChunk[BatchIndex] = VisibleIndices.Length;

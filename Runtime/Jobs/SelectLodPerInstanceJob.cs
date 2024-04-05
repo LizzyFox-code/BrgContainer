@@ -1,9 +1,11 @@
 ﻿namespace BrgContainer.Runtime.Jobs
 {
     using System.Runtime.InteropServices;
+    using System.Threading;
     using Lod;
     using Unity.Burst;
     using Unity.Collections;
+    using Unity.Collections.LowLevel.Unsafe;
     using Unity.Jobs;
     using Unity.Mathematics;
 
@@ -16,12 +18,14 @@
         [ReadOnly]
         public NativeArray<int> Indices;
         [WriteOnly]
-        public NativeArray<IndexLodPair> LodPerInstance;
+        public NativeArray<int> LodPerInstance;
+        [WriteOnly]
+        public NativeArray<int> InstanceCountPerLod;
 
         public float4x4 ViewerObjectToWorld;
         public BatchLodDescription LodDescription;
         
-        public void Execute(int index)
+        public unsafe void Execute(int index)
         {
             var instanceIndex = Indices[index];
             var matrix = ObjectToWorld[instanceIndex];
@@ -38,7 +42,9 @@
                 lod = math.select(lod, i, isGreater);
             }
 
-            LodPerInstance[index] = new IndexLodPair(instanceIndex, lod);
+            // TODO: maybe it possible count without interlocked?
+            Interlocked.Increment(ref UnsafeUtility.ArrayElementAsRef<int>(InstanceCountPerLod.GetUnsafePtr(), lod));
+            LodPerInstance[instanceIndex] = lod;
         }
     }
 }

@@ -255,7 +255,7 @@
             if(batchCount == 0)
                 return batchGroups.Dispose(default);
 
-            var visibleIndicesPerBatch = new NativeArray<BatchInstanceIndices>(batchCount, Allocator.TempJob);
+            var visibleIndicesPerBatch = new NativeArray<BatchInstanceData>(batchCount, Allocator.TempJob);
             var visibleCountPerBatch = new NativeArray<int>(batchCount, Allocator.TempJob);
             var lodPerBatch = new NativeArray<int>(batchCount, Allocator.TempJob);
 
@@ -283,7 +283,7 @@
                     };
                     var cullingBatchInstancesJobHandle = cullingBatchInstancesJob.ScheduleAppendByRef(visibleIndices, instanceCountPerBatch, batchHandle);
 
-                    var lodPerInstance = new NativeArray<IndexLodPair>(instanceCountPerBatch, Allocator.TempJob);
+                    var lodPerInstance = new NativeArray<int>(instanceCountPerBatch, Allocator.TempJob);
                     var selectLodPerInstanceJob = new SelectLodPerInstanceJob
                     {
                         ObjectToWorld = objectToWorld,
@@ -293,7 +293,7 @@
                         ViewerObjectToWorld = cullingContext.localToWorldMatrix
                     };
                     var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleByRef(visibleIndices, 128, cullingBatchInstancesJobHandle);
-                    selectLodPerInstanceJobHandle = lodPerInstance.SortJob(new LodComparer())
+                    selectLodPerInstanceJobHandle = visibleIndices.SortJob(new IndexComparer(lodPerInstance))
                         .Schedule(selectLodPerInstanceJobHandle); // sort by LOD
 
                     var copyVisibleIndicesToMapJob = new CopyVisibleIndicesToMapJob
