@@ -284,11 +284,13 @@
                     var cullingBatchInstancesJobHandle = cullingBatchInstancesJob.ScheduleAppendByRef(visibleIndices, instanceCountPerBatch, batchHandle);
 
                     var lodPerInstance = new NativeArray<int>(instanceCountPerBatch, Allocator.TempJob);
+                    var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData4.Count, Allocator.TempJob);
                     var selectLodPerInstanceJob = new SelectLodPerInstanceJob
                     {
                         ObjectToWorld = objectToWorld,
                         Indices = visibleIndices.AsDeferredJobArray(),
                         LodPerInstance = lodPerInstance,
+                        InstanceCountPerLod = instanceCountPerLod,
                         LodDescription = batchGroup.BatchLodDescription,
                         ViewerObjectToWorld = cullingContext.localToWorldMatrix
                     };
@@ -300,10 +302,12 @@
                     {
                         VisibleIndicesPerBatch = visibleIndicesPerBatch,
                         VisibleIndices = visibleIndices.AsDeferredJobArray(),
+                        InstanceCountPerLod = instanceCountPerLod,
                         VisibleCountPerChunk = visibleCountPerBatch,
                         BatchIndex = offset + b
                     };
                     batchHandle = copyVisibleIndicesToMapJob.ScheduleByRef(selectLodPerInstanceJobHandle);
+                    batchHandle = instanceCountPerLod.Dispose(batchHandle);
                 }
 
                 offset += windowCount;
