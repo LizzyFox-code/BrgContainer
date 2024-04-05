@@ -17,6 +17,8 @@
         public NativeArray<BatchGroupDrawRange> DrawRangeData;
         [ReadOnly]
         public NativeArray<int> VisibleCountPerBatch;
+        [ReadOnly]
+        public NativeArray<int> LODPerInstance;
 
         [NativeDisableUnsafePtrRestriction]
         public unsafe BatchCullingOutputDrawCommands* OutputDrawCommands;
@@ -38,15 +40,17 @@
                 var visibleCountPerBatch = VisibleCountPerBatch[batchIndex++];
                 if(visibleCountPerBatch == 0) // there is no any visible instances for this batch
                     continue;
-                
+
+                //var lod = LODPerInstance[batchIndex++];
+                var lodRendererData = batchGroup.BatchRendererData[lod];
                 var batchDrawCommand = new BatchDrawCommand
                 {
                     visibleOffset = (uint) visibleOffset,
                     visibleCount = (uint) visibleCountPerBatch,
                     batchID = batchGroup[i],
-                    materialID = batchGroup.BatchRendererData.MaterialID,
-                    meshID = batchGroup.BatchRendererData.MeshID,
-                    submeshIndex = batchGroup.BatchRendererData.SubMeshIndex,
+                    materialID = lodRendererData.MaterialID,
+                    meshID = lodRendererData.MeshID,
+                    submeshIndex = (ushort)batchGroup.BatchRendererData.SubMeshIndex,
                     splitVisibilityMask = 0xff,
                     flags = BatchDrawCommandFlags.None,
                     sortingPosition = 0

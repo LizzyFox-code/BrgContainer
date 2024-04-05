@@ -16,6 +16,8 @@
         [NativeDisableContainerSafetyRestriction]
         public NativeArray<int> VisibleCountPerBatch;
         [NativeDisableContainerSafetyRestriction]
+        public NativeArray<int> LodPerBatch;
+        [NativeDisableContainerSafetyRestriction]
         public NativeArray<BatchGroupDrawRange> DrawRangesData;
 
         [ReadOnly, NativeDisableContainerSafetyRestriction]

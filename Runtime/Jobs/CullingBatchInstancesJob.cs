@@ -6,7 +6,7 @@
     using Unity.Jobs;
     using Unity.Mathematics;
     using UnityEngine;
-    
+
     [StructLayout(LayoutKind.Sequential)]
     [BurstCompile(OptimizeFor = OptimizeFor.Performance, FloatMode = FloatMode.Fast, CompileSynchronously = true, FloatPrecision = FloatPrecision.Low, DisableSafetyChecks = true)]
     internal struct CullingBatchInstancesJob : IJobFilter
@@ -15,7 +15,7 @@
         public NativeArray<Plane> CullingPlanes;
         [ReadOnly]
         public NativeArray<PackedMatrix> ObjectToWorld;
-
+        
         public int DataOffset;
         public float3 Extents;
         

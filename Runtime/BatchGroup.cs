@@ -8,6 +8,7 @@
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using System.Threading;
+    using Lod;
     using Unity.Burst;
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
@@ -35,6 +36,7 @@
         private Allocator m_Allocator;
         
         public readonly BatchRendererData BatchRendererData;
+        public readonly BatchLodDescription BatchLodDescription;
 
         public readonly unsafe bool IsCreated => (IntPtr) m_DataBuffer != IntPtr.Zero &&
                                                  (IntPtr) m_Batches != IntPtr.Zero &&
@@ -50,10 +52,12 @@
             get => *m_InstanceCount;
         }
 
-        public unsafe BatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, Allocator allocator)
+        public unsafe BatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, in BatchLodDescription batchLodDescription, Allocator allocator)
         {
             m_BatchDescription = batchDescription;
             BatchRendererData = rendererData;
+            BatchLodDescription = batchLodDescription;
+            
             m_BufferLength = m_BatchDescription.TotalBufferSize / 16;
             m_BatchLength = m_BatchDescription.WindowCount;
 
@@ -83,7 +87,6 @@
         public unsafe void Register([NotNull]BatchRendererGroup batchRendererGroup, GraphicsBufferHandle bufferHandle)
         {
             var metadataValues = m_BatchDescription.AsNativeArray();
-            
             for (var i = 0; i < m_BatchDescription.WindowCount; i++)
             {
                 var offset = (uint) (i * m_BatchDescription.AlignedWindowSize);
@@ -100,8 +103,13 @@
                 batchRendererGroup.RemoveBatch(m_Batches[i]);
             }
 
-            batchRendererGroup.UnregisterMaterial(BatchRendererData.MaterialID);
-            batchRendererGroup.UnregisterMesh(BatchRendererData.MeshID);
+            for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
+            {
+                ref var lodRendererData = ref BatchRendererData[i];
+                
+                batchRendererGroup.UnregisterMaterial(lodRendererData.MaterialID);
+                batchRendererGroup.UnregisterMesh(lodRendererData.MeshID);
+            }
         }
 
         public unsafe void SetInstanceCount(int instanceCount)

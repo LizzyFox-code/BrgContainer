@@ -12,8 +12,9 @@
     {
         [WriteOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<BatchInstanceIndices> VisibleIndicesPerBatch;
+        
         [NativeDisableContainerSafetyRestriction]
-        public NativeList<int> VisibleIndices;
+        public NativeArray<int> VisibleIndices;
         [WriteOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<int> VisibleCountPerChunk;
         
@@ -26,12 +27,9 @@
             
             var instanceIndices = new BatchInstanceIndices
             {
-                Indices = (int*) UnsafeUtility.Malloc(UnsafeUtility.SizeOf<int>() * VisibleIndices.Length,
-                    UnsafeUtility.AlignOf<int>(), Allocator.TempJob)
+                Indices = (int*)VisibleIndices.GetUnsafePtr() // no data copy, only ptr
             };
             
-            UnsafeUtility.MemCpy(instanceIndices.Indices, VisibleIndices.GetUnsafePtr(), VisibleIndices.Length * UnsafeUtility.SizeOf<int>());
-
             VisibleIndicesPerBatch[BatchIndex] = instanceIndices;
             VisibleCountPerChunk[BatchIndex] = VisibleIndices.Length;
         }

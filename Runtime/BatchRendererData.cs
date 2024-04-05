@@ -1,51 +1,32 @@
 ﻿namespace BrgContainer.Runtime
 {
-    using System;
+    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
+    using Lod;
     using Unity.Mathematics;
-    using UnityEngine.Rendering;
 
     [StructLayout(LayoutKind.Sequential)]
-    public readonly struct BatchRendererData : IEquatable<BatchRendererData>
+    public readonly struct BatchRendererData
     {
-        public readonly BatchMeshID MeshID;
-        public readonly BatchMaterialID MaterialID;
-        public readonly ushort SubMeshIndex;
+        private readonly FixedBatchLodRendererData4 m_BatchLodRendererData4;
+        
+        public readonly uint SubMeshIndex;
         public readonly RendererDescription Description;
         public readonly float3 Extents;
 
-        public BatchRendererData(BatchMeshID meshID, BatchMaterialID materialID, ushort subMeshIndex, float3 extents, in RendererDescription description)
+        public ref BatchLodRendererData this[int index]
         {
-            MeshID = meshID;
-            MaterialID = materialID;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ref m_BatchLodRendererData4[index];
+        }
+
+        public BatchRendererData(uint subMeshIndex, float3 extents, in RendererDescription description)
+        {
+            m_BatchLodRendererData4 = default;
+
             SubMeshIndex = subMeshIndex;
             Extents = extents;
             Description = description;
-        }
-
-        public bool Equals(BatchRendererData other)
-        {
-            return MeshID.Equals(other.MeshID) && MaterialID.Equals(other.MaterialID) && SubMeshIndex == other.SubMeshIndex;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is BatchRendererData other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(MeshID, MaterialID, SubMeshIndex);
-        }
-
-        public static bool operator ==(BatchRendererData left, BatchRendererData right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(BatchRendererData left, BatchRendererData right)
-        {
-            return !left.Equals(right);
         }
     }
 }
