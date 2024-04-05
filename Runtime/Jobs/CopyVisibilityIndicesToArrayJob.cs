@@ -16,7 +16,7 @@
         public NativeArray<BatchGroup> BatchGroups;
         [ReadOnly]
         public NativeArray<int> VisibleCountPerBatch;
-        public NativeArray<BatchInstanceData> VisibleIndicesPerBatch;
+        public NativeArray<BatchInstanceData> InstanceDataPerBatch;
         [ReadOnly]
         public NativeArray<BatchGroupDrawRange> DrawRangesData;
 
@@ -33,17 +33,15 @@
             var windowCount = batchGroup.GetWindowCount();
             var visibleOffset = drawRangeData.VisibleIndexOffset;
 
-            var batchIndex = drawRangeData.BatchIndex;
+            var batchStartIndex = drawRangeData.BatchIndex;
             for (var i = 0; i < windowCount; i++)
             {
+                var batchIndex = batchStartIndex + i;
                 var visibleCountPerBatch = VisibleCountPerBatch[batchIndex];
                 if (visibleCountPerBatch == 0) // there is no any visible instances for this batch
-                {
-                    batchIndex++;
                     continue;
-                }
 
-                var batchInstanceIndices = VisibleIndicesPerBatch[batchIndex];
+                var batchInstanceIndices = InstanceDataPerBatch[batchIndex];
                 UnsafeUtility.MemCpy((void*)((IntPtr) OutputDrawCommands->visibleInstances + visibleOffset * UnsafeUtility.SizeOf<int>()),
                     batchInstanceIndices.Indices, visibleCountPerBatch * UnsafeUtility.SizeOf<int>());
 
@@ -51,8 +49,7 @@
                 UnsafeUtility.Free(batchInstanceIndices.Indices, Allocator.TempJob);
                 batchInstanceIndices.Indices = null;
                 
-                VisibleIndicesPerBatch[batchIndex] = batchInstanceIndices;
-                batchIndex++;
+                InstanceDataPerBatch[batchIndex] = batchInstanceIndices;
             }
         }
     }

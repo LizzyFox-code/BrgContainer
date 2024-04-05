@@ -1,6 +1,7 @@
 ﻿namespace BrgContainer.Runtime.Jobs
 {
     using System.Runtime.InteropServices;
+    using Lod;
     using Unity.Burst;
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
@@ -18,7 +19,7 @@
         [ReadOnly]
         public NativeArray<int> VisibleCountPerBatch;
         [ReadOnly]
-        public NativeArray<int> LODPerInstance;
+        public NativeArray<BatchInstanceData> InstanceDataPerBatch;
 
         [NativeDisableUnsafePtrRestriction]
         public unsafe BatchCullingOutputDrawCommands* OutputDrawCommands;
@@ -32,34 +33,41 @@
             var batchGroup = BatchGroups[index];
             var subBatchCount = batchGroup.GetWindowCount();
 
-            var batchIndex = drawRangeData.BatchIndex;
+            var batchStartIndex = drawRangeData.BatchIndex;
             var drawCommandIndex = drawRangeData.Begin;
             var visibleOffset = drawRangeData.VisibleIndexOffset;
             for (var i = 0; i < subBatchCount; i++)
             {
-                var visibleCountPerBatch = VisibleCountPerBatch[batchIndex++];
+                var batchIndex = batchStartIndex + i;
+                var visibleCountPerBatch = VisibleCountPerBatch[batchIndex];
                 if(visibleCountPerBatch == 0) // there is no any visible instances for this batch
                     continue;
 
-                //var lod = LODPerInstance[batchIndex++];
-                var lodRendererData = batchGroup.BatchRendererData[lod];
-                var batchDrawCommand = new BatchDrawCommand
+                var batchInstanceData = InstanceDataPerBatch[batchIndex];
+                for (var lod = 0; lod < FixedBatchLodRendererData4.Count; lod++)
                 {
-                    visibleOffset = (uint) visibleOffset,
-                    visibleCount = (uint) visibleCountPerBatch,
-                    batchID = batchGroup[i],
-                    materialID = lodRendererData.MaterialID,
-                    meshID = lodRendererData.MeshID,
-                    submeshIndex = (ushort)batchGroup.BatchRendererData.SubMeshIndex,
-                    splitVisibilityMask = 0xff,
-                    flags = BatchDrawCommandFlags.None,
-                    sortingPosition = 0
-                };
+                    var instanceCountPerLod = batchInstanceData.InstanceCountPerLod[lod];
+                    if(instanceCountPerLod == 0) // there is no any visible instances for this level of details
+                        continue;
+                    
+                    var lodRendererData = batchGroup.BatchRendererData[lod];
+                    var batchDrawCommand = new BatchDrawCommand
+                    {
+                        visibleOffset = (uint) visibleOffset,
+                        visibleCount = (uint) instanceCountPerLod,
+                        batchID = batchGroup[i],
+                        materialID = lodRendererData.MaterialID,
+                        meshID = lodRendererData.MeshID,
+                        submeshIndex = (ushort)batchGroup.BatchRendererData.SubMeshIndex,
+                        splitVisibilityMask = 0xff,
+                        flags = BatchDrawCommandFlags.None,
+                        sortingPosition = 0
+                    };
 
-                OutputDrawCommands->drawCommands[drawCommandIndex] = batchDrawCommand;
-                
-                drawCommandIndex++;
-                visibleOffset += visibleCountPerBatch;
+                    OutputDrawCommands->drawCommands[drawCommandIndex] = batchDrawCommand;
+                    drawCommandIndex++;
+                    visibleOffset += instanceCountPerLod;
+                }
             }
         }
     }

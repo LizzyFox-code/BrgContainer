@@ -108,7 +108,7 @@
         /// <param name="extentsOffset"></param>
         /// <param name="rendererDescription">A renderer description provides a rendering metadata.</param>
         /// <returns>Returns a batch handle that provides some API for write and upload instance data for the GPU.</returns>
-        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, float3 extentsOffset, in RendererDescription rendererDescription, in BatchLodDescription lodDescription)
+        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, float3 extentsOffset, in RendererDescription rendererDescription, in BatchLodDescription lodDescription) // TODO: lod group
         {
             var graphicsBuffer = CreateGraphicsBuffer(BatchDescription.IsUBO, batchDescription.TotalBufferSize);
             var rendererData = CreateRendererData(mesh, subMeshIndex, material, extentsOffset, rendererDescription);
@@ -255,23 +255,22 @@
             if(batchCount == 0)
                 return batchGroups.Dispose(default);
 
-            var visibleIndicesPerBatch = new NativeArray<BatchInstanceData>(batchCount, Allocator.TempJob);
+            var instanceDataPerBatch = new NativeArray<BatchInstanceData>(batchCount, Allocator.TempJob);
             var visibleCountPerBatch = new NativeArray<int>(batchCount, Allocator.TempJob);
-            var lodPerBatch = new NativeArray<int>(batchCount, Allocator.TempJob);
 
             var offset = 0;
             var batchJobHandles = stackalloc JobHandle[batchGroups.Length];
-            for (var i = 0; i < batchGroups.Length; i++)
+            for (var batchGroupIndex = 0; batchGroupIndex < batchGroups.Length; batchGroupIndex++)
             {
-                var batchGroup = batchGroups[i];
+                var batchGroup = batchGroups[batchGroupIndex];
                 var maxInstancePerWindow = batchGroup.m_BatchDescription.MaxInstancePerWindow;
                 var windowCount = batchGroup.GetWindowCount();
                 var objectToWorld = batchGroup.GetObjectToWorldArray(Allocator.TempJob);
 
                 JobHandle batchHandle = default;
-                for (var b = 0; b < windowCount; b++)
+                for (var batchIndex = 0; batchIndex < windowCount; batchIndex++)
                 {
-                    var instanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(b);
+                    var instanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(batchIndex);
                     var visibleIndices = new NativeList<int>(instanceCountPerBatch, Allocator.TempJob);
                     
                     var cullingBatchInstancesJob = new CullingBatchInstancesJob
@@ -279,7 +278,7 @@
                         CullingPlanes = cullingContext.cullingPlanes,
                         ObjectToWorld = objectToWorld,
                         Extents = batchGroup.BatchRendererData.Extents,
-                        DataOffset = maxInstancePerWindow * b
+                        DataOffset = maxInstancePerWindow * batchIndex
                     };
                     var cullingBatchInstancesJobHandle = cullingBatchInstancesJob.ScheduleAppendByRef(visibleIndices, instanceCountPerBatch, batchHandle);
 
@@ -300,18 +299,18 @@
 
                     var copyVisibleIndicesToMapJob = new CopyVisibleIndicesToMapJob
                     {
-                        VisibleIndicesPerBatch = visibleIndicesPerBatch,
+                        InstanceDataPerBatch = instanceDataPerBatch,
                         VisibleIndices = visibleIndices.AsDeferredJobArray(),
                         InstanceCountPerLod = instanceCountPerLod,
                         VisibleCountPerChunk = visibleCountPerBatch,
-                        BatchIndex = offset + b
+                        BatchIndex = offset + batchIndex
                     };
                     batchHandle = copyVisibleIndicesToMapJob.ScheduleByRef(selectLodPerInstanceJobHandle);
                     batchHandle = instanceCountPerLod.Dispose(batchHandle);
                 }
 
                 offset += windowCount;
-                batchJobHandles[i] = objectToWorld.Dispose(batchHandle);
+                batchJobHandles[batchGroupIndex] = objectToWorld.Dispose(batchHandle);
             }
 
             var cullingHandle = JobHandleUnsafeUtility.CombineDependencies(batchJobHandles, batchGroups.Length);
@@ -329,7 +328,6 @@
                 {
                     DrawCounters = drawCounters,
                     VisibleCountPerBatch = visibleCountPerBatch,
-                    LodPerBatch = lodPerBatch,
                     DrawRangesData = drawRangeData,
                     BatchGroups = batchGroups,
                     BatchGroupIndex = i,
@@ -364,7 +362,7 @@
                 BatchGroups = batchGroups,
                 DrawRangeData = drawRangeData,
                 VisibleCountPerBatch = visibleCountPerBatch,
-                LODPerInstance = lodPerBatch,
+                InstanceDataPerBatch = instanceDataPerBatch,
                 OutputDrawCommands = drawCommands
             };
             var createDrawCommandsHandle = createDrawCommandsJob.ScheduleParallelByRef(batchGroups.Length, 64, createDrawRangesHandle);
@@ -373,16 +371,15 @@
             {
                 BatchGroups = batchGroups,
                 VisibleCountPerBatch = visibleCountPerBatch,
-                VisibleIndicesPerBatch = visibleIndicesPerBatch,
+                InstanceDataPerBatch = instanceDataPerBatch,
                 DrawRangesData = drawRangeData,
                 OutputDrawCommands = drawCommands
             };
 
             var resultHandle = copyVisibilityIndicesToArrayJob.ScheduleParallelByRef(batchGroups.Length, 32, createDrawCommandsHandle);
-            resultHandle = JobHandle.CombineDependencies(visibleIndicesPerBatch.Dispose(resultHandle),
+            resultHandle = JobHandle.CombineDependencies(instanceDataPerBatch.Dispose(resultHandle),
                 visibleCountPerBatch.Dispose(resultHandle));
             resultHandle = JobHandle.CombineDependencies(drawRangeData.Dispose(resultHandle), batchGroups.Dispose(resultHandle));
-            resultHandle = lodPerBatch.Dispose(resultHandle);
 
             return resultHandle;
         }
