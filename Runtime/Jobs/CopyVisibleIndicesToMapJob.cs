@@ -29,7 +29,6 @@
                 return;
             
             BatchInstanceData instanceIndices = default;
-
             instanceIndices.Indices = (int*)UnsafeUtility.MallocTracked(UnsafeUtility.SizeOf<int>() * VisibleIndices.Length,
                 UnsafeUtility.AlignOf<int>(), Allocator.TempJob, 0);
             UnsafeUtility.MemCpy(instanceIndices.Indices, VisibleIndices.GetUnsafeReadOnlyPtr(), UnsafeUtility.SizeOf<int>() * VisibleIndices.Length);

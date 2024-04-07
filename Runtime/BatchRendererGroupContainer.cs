@@ -349,6 +349,7 @@
                     selectLodPerInstanceJobHandle = copyOfIndices.Dispose(selectLodPerInstanceJobHandle);
                     selectLodPerInstanceJobHandle = visibleIndices.AsDeferredJobArray().SortJob(new IndexComparer(lodPerInstance))
                         .Schedule(selectLodPerInstanceJobHandle); // sort by LOD
+                    selectLodPerInstanceJobHandle = lodPerInstance.Dispose(selectLodPerInstanceJobHandle);
 
                     var copyVisibleIndicesToMapJob = new CopyVisibleIndicesToMapJob
                     {
@@ -359,7 +360,8 @@
                         BatchIndex = offset + batchIndex
                     };
                     batchHandle = copyVisibleIndicesToMapJob.ScheduleByRef(selectLodPerInstanceJobHandle);
-                    batchHandle = JobHandle.CombineDependencies(instanceCountPerLod.Dispose(batchHandle), visibleIndices.Dispose(batchHandle));
+                    batchHandle = instanceCountPerLod.Dispose(batchHandle);
+                    batchHandle = visibleIndices.Dispose(batchHandle);
                 }
 
                 offset += windowCount;
