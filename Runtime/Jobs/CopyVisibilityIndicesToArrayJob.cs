@@ -46,7 +46,7 @@
                     batchInstanceData.Indices, visibleCountPerBatch * UnsafeUtility.SizeOf<int>());
 
                 visibleOffset += visibleCountPerBatch;
-                UnsafeUtility.Free(batchInstanceData.Indices, Allocator.TempJob);
+                UnsafeUtility.FreeTracked(batchInstanceData.Indices, Allocator.TempJob);
                 batchInstanceData.Indices = null;
                 
                 InstanceDataPerBatch[batchIndex] = batchInstanceData;

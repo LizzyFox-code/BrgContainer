@@ -359,7 +359,7 @@
                         BatchIndex = offset + batchIndex
                     };
                     batchHandle = copyVisibleIndicesToMapJob.ScheduleByRef(selectLodPerInstanceJobHandle);
-                    batchHandle = instanceCountPerLod.Dispose(batchHandle);
+                    batchHandle = JobHandle.CombineDependencies(instanceCountPerLod.Dispose(batchHandle), visibleIndices.Dispose(batchHandle));
                 }
 
                 offset += windowCount;

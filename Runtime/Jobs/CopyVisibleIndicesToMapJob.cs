@@ -1,6 +1,7 @@
 ﻿namespace BrgContainer.Runtime.Jobs
 {
     using System.Runtime.InteropServices;
+    using Lod;
     using Unity.Burst;
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
@@ -15,7 +16,7 @@
         [ReadOnly]
         public NativeArray<int> InstanceCountPerLod;
         
-        [NativeDisableContainerSafetyRestriction]
+        [ReadOnly]
         public NativeArray<int> VisibleIndices;
         [WriteOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<int> VisibleCountPerChunk;
@@ -27,12 +28,16 @@
             if(VisibleIndices.Length == 0)
                 return;
             
-            var instanceIndices = new BatchInstanceData
+            BatchInstanceData instanceIndices = default;
+
+            instanceIndices.Indices = (int*)UnsafeUtility.MallocTracked(UnsafeUtility.SizeOf<int>() * VisibleIndices.Length,
+                UnsafeUtility.AlignOf<int>(), Allocator.TempJob, 0);
+            UnsafeUtility.MemCpy(instanceIndices.Indices, VisibleIndices.GetUnsafeReadOnlyPtr(), UnsafeUtility.SizeOf<int>() * VisibleIndices.Length);
+
+            for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
             {
-                Indices = (int*)VisibleIndices.GetUnsafePtr(), // no data copy, only ptr
-            };
-            
-            UnsafeUtility.MemCpy(&instanceIndices.InstanceCountPerLod, InstanceCountPerLod.GetUnsafePtr(), UnsafeUtility.SizeOf<int>() * InstanceCountPerLod.Length);
+                instanceIndices.InstanceCountPerLod[i] = InstanceCountPerLod[i];
+            }
             
             InstanceDataPerBatch[BatchIndex] = instanceIndices;
             VisibleCountPerChunk[BatchIndex] = VisibleIndices.Length;
