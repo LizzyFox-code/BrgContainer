@@ -128,6 +128,14 @@
             return AddBatch(ref batchDescription, ref lodGroup, extentsOffset, rendererDescription);
         }
 
+        /// <summary>
+        /// Adds a batch to the BatchRendererGroupContainer.
+        /// </summary>
+        /// <param name="batchDescription">The batch description.</param>
+        /// <param name="lodGroup">The LOD group.</param>
+        /// <param name="extentsOffset">The extents offset.</param>
+        /// <param name="rendererDescription">The renderer description.</param>
+        /// <returns>The batch handle.</returns>
         public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, ref LodGroup lodGroup, float3 extentsOffset, in RendererDescription rendererDescription)
         {
 #if (UNITY_EDITOR || DEVELOPMENT_BUILD)
