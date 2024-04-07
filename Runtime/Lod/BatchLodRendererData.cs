@@ -6,11 +6,11 @@
 
     [StructLayout(LayoutKind.Sequential)]
     [DebuggerDisplay("MeshID = {MeshID.value}, MaterialID = {MaterialID.value}")]
-    public readonly struct BatchLodRendererData // 12 bytes
+    public struct BatchLodRendererData // 12 bytes
     {
-        public readonly BatchMeshID MeshID;
-        public readonly BatchMaterialID MaterialID;
-        public readonly uint SubMeshIndex;
+        public BatchMeshID MeshID;
+        public BatchMaterialID MaterialID;
+        public uint SubMeshIndex;
 
         public BatchLodRendererData(BatchMeshID meshID, BatchMaterialID materialID, uint subMeshIndex)
         {

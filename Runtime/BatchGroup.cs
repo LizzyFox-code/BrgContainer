@@ -103,7 +103,7 @@
 
             for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
             {
-                ref var lodRendererData = ref BatchRendererData[i];
+                var lodRendererData = BatchRendererData[i];
                 
                 if(lodRendererData.MaterialID != BatchMaterialID.Null)
                     batchRendererGroup.UnregisterMaterial(lodRendererData.MaterialID);

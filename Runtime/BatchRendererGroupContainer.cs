@@ -137,7 +137,7 @@
             
             var graphicsBuffer = CreateGraphicsBuffer(BatchDescription.IsUBO, batchDescription.TotalBufferSize);
             var rendererData = CreateRendererData(ref lodGroup, extentsOffset, rendererDescription);
-            var batchGroup = CreateBatchGroup(ref batchDescription, rendererData, graphicsBuffer.bufferHandle);
+            var batchGroup = CreateBatchGroup(ref batchDescription, ref rendererData, graphicsBuffer.bufferHandle);
             
             var batchId = batchGroup[0];
             m_GraphicsBuffers.Add(batchId, graphicsBuffer);
@@ -239,7 +239,7 @@
             return new GraphicsBuffer(target, count, stride);
         }
 
-        private BatchGroup CreateBatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, GraphicsBufferHandle graphicsBufferHandle)
+        private BatchGroup CreateBatchGroup(ref BatchDescription batchDescription, ref BatchRendererData rendererData, GraphicsBufferHandle graphicsBufferHandle)
         {
             var batchGroup = new BatchGroup(ref batchDescription, rendererData, Allocator.Persistent);
             batchGroup.Register(m_BatchRendererGroup, graphicsBufferHandle);
@@ -277,8 +277,7 @@
                 var meshId = m_BatchRendererGroup.RegisterMesh(mesh);
                 var materialId = m_BatchRendererGroup.RegisterMaterial(material);
 
-                ref var rendererData = ref batchRendererData[i];
-                rendererData = new BatchLodRendererData(meshId, materialId, lodData.SubMeshIndex);
+                batchRendererData[i] = new BatchLodRendererData(meshId, materialId, lodData.SubMeshIndex);
             }
 
             return batchRendererData;

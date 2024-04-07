@@ -6,19 +6,20 @@
     using Unity.Mathematics;
 
     [StructLayout(LayoutKind.Sequential)]
-    public readonly struct BatchRendererData
+    public struct BatchRendererData
     {
-        private readonly FixedBatchLodRendererData4 m_BatchLodRendererData4;
+        private FixedBatchLodRendererData4 m_BatchLodRendererData4;
         
         public readonly RendererDescription Description;
         public readonly float3 Extents;
 
         public readonly BatchLodDescription BatchLodDescription;
 
-        public ref BatchLodRendererData this[int index]
+        public BatchLodRendererData this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref m_BatchLodRendererData4[index];
+            readonly get => m_BatchLodRendererData4[index];
+            set => m_BatchLodRendererData4[index] = value;
         }
 
         public BatchRendererData(float3 extents, in RendererDescription description, in BatchLodDescription batchLodDescription)
