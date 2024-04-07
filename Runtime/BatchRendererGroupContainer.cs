@@ -120,7 +120,7 @@
                         Mesh = mesh,
                         Material = material,
                         SubMeshIndex = subMeshIndex,
-                        Distance = float.MaxValue - 1.0f
+                        Distance = 0.0f
                     }
                 },
                 Culled = float.MaxValue
@@ -256,7 +256,7 @@
 
             for (var i = 0; i < BatchLodDescription.DistanceCount - 1; i++)
             {
-                var distance = lodGroup.Culled - 1.0f;
+                var distance = 0.0f;
                 if(lodGroup.LODs.Length > i)
                     distance = lodGroup.LODs[i].Distance;
 
@@ -267,6 +267,9 @@
             var batchRendererData = new BatchRendererData(extents, description, batchLodDescription);
             for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
             {
+                if(lodGroup.LODs.Length <= i)
+                    break;
+                
                 var lodData = lodGroup.LODs[i];
                 var mesh = lodData.Mesh;
                 var material = lodData.Material;
@@ -325,17 +328,27 @@
 
                     var lodPerInstance = new NativeArray<int>(instanceCountPerBatch, Allocator.TempJob);
                     var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData4.Count, Allocator.TempJob);
+
+                    var copyOfIndices = new NativeArray<int>(instanceCountPerBatch, Allocator.TempJob);
+                    var copyOfIndicesJob = new CopyArrayJob<int>
+                    {
+                        Source = visibleIndices.AsDeferredJobArray(),
+                        Destination = copyOfIndices
+                    };
+                    var copyOfIndicesJobHandle = copyOfIndicesJob.ScheduleByRef(cullingBatchInstancesJobHandle);
+                    
                     var selectLodPerInstanceJob = new SelectLodPerInstanceJob
                     {
                         ObjectToWorld = objectToWorld,
-                        Indices = visibleIndices.AsDeferredJobArray(),
+                        Indices = copyOfIndices,
                         LodPerInstance = lodPerInstance,
                         InstanceCountPerLod = instanceCountPerLod,
                         LodDescription = batchGroup.BatchRendererData.BatchLodDescription,
                         ViewerObjectToWorld = cullingContext.localToWorldMatrix
                     };
-                    var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleFilter(visibleIndices, cullingBatchInstancesJobHandle);
-                    selectLodPerInstanceJobHandle = visibleIndices.SortJob(new IndexComparer(lodPerInstance))
+                    var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleFilterByRef(visibleIndices, copyOfIndicesJobHandle);
+                    selectLodPerInstanceJobHandle = copyOfIndices.Dispose(selectLodPerInstanceJobHandle);
+                    selectLodPerInstanceJobHandle = visibleIndices.AsDeferredJobArray().SortJob(new IndexComparer(lodPerInstance))
                         .Schedule(selectLodPerInstanceJobHandle); // sort by LOD
 
                     var copyVisibleIndicesToMapJob = new CopyVisibleIndicesToMapJob
@@ -372,7 +385,8 @@
                     DrawRangesData = drawRangeData,
                     BatchGroups = batchGroups,
                     BatchGroupIndex = i,
-                    BatchOffset = offset
+                    BatchOffset = offset,
+                    InstanceDataPerBatch = instanceDataPerBatch
                 };
                     
                 offset += windowCount;

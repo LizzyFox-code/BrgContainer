@@ -105,8 +105,10 @@
             {
                 ref var lodRendererData = ref BatchRendererData[i];
                 
-                batchRendererGroup.UnregisterMaterial(lodRendererData.MaterialID);
-                batchRendererGroup.UnregisterMesh(lodRendererData.MeshID);
+                if(lodRendererData.MaterialID != BatchMaterialID.Null)
+                    batchRendererGroup.UnregisterMaterial(lodRendererData.MaterialID);
+                if(lodRendererData.MeshID != BatchMeshID.Null)
+                    batchRendererGroup.UnregisterMesh(lodRendererData.MeshID);
             }
         }
 

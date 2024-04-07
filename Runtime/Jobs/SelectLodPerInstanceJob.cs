@@ -17,9 +17,9 @@
         public NativeArray<PackedMatrix> ObjectToWorld;
         [ReadOnly]
         public NativeArray<int> Indices;
-        [WriteOnly]
+        [WriteOnly, NativeDisableParallelForRestriction]
         public NativeArray<int> LodPerInstance;
-        [WriteOnly]
+        [WriteOnly, NativeDisableParallelForRestriction]
         public NativeArray<int> InstanceCountPerLod;
 
         public float4x4 ViewerObjectToWorld;
