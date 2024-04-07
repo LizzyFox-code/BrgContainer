@@ -293,7 +293,7 @@
                         LodDescription = batchGroup.BatchLodDescription,
                         ViewerObjectToWorld = cullingContext.localToWorldMatrix
                     };
-                    var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleByRef(visibleIndices, 128, cullingBatchInstancesJobHandle);
+                    var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleFilter(visibleIndices, cullingBatchInstancesJobHandle);
                     selectLodPerInstanceJobHandle = visibleIndices.SortJob(new IndexComparer(lodPerInstance))
                         .Schedule(selectLodPerInstanceJobHandle); // sort by LOD
 

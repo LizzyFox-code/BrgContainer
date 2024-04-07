@@ -41,15 +41,15 @@
                 if (visibleCountPerBatch == 0) // there is no any visible instances for this batch
                     continue;
 
-                var batchInstanceIndices = InstanceDataPerBatch[batchIndex];
+                var batchInstanceData = InstanceDataPerBatch[batchIndex];
                 UnsafeUtility.MemCpy((void*)((IntPtr) OutputDrawCommands->visibleInstances + visibleOffset * UnsafeUtility.SizeOf<int>()),
-                    batchInstanceIndices.Indices, visibleCountPerBatch * UnsafeUtility.SizeOf<int>());
+                    batchInstanceData.Indices, visibleCountPerBatch * UnsafeUtility.SizeOf<int>());
 
                 visibleOffset += visibleCountPerBatch;
-                UnsafeUtility.Free(batchInstanceIndices.Indices, Allocator.TempJob);
-                batchInstanceIndices.Indices = null;
+                UnsafeUtility.Free(batchInstanceData.Indices, Allocator.TempJob);
+                batchInstanceData.Indices = null;
                 
-                InstanceDataPerBatch[batchIndex] = batchInstanceIndices;
+                InstanceDataPerBatch[batchIndex] = batchInstanceData;
             }
         }
     }

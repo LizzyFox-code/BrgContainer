@@ -11,7 +11,7 @@
 
     [StructLayout(LayoutKind.Sequential)]
     [BurstCompile(OptimizeFor = OptimizeFor.Performance, FloatMode = FloatMode.Fast, CompileSynchronously = true, FloatPrecision = FloatPrecision.Low, DisableSafetyChecks = true)]
-    internal struct SelectLodPerInstanceJob : IJobParallelForDefer
+    internal struct SelectLodPerInstanceJob : IJobFilter
     {
         [ReadOnly]
         public NativeArray<PackedMatrix> ObjectToWorld;
@@ -25,7 +25,7 @@
         public float4x4 ViewerObjectToWorld;
         public BatchLodDescription LodDescription;
         
-        public unsafe void Execute(int index)
+        public unsafe bool Execute(int index)
         {
             var instanceIndex = Indices[index];
             var matrix = ObjectToWorld[instanceIndex];
@@ -36,15 +36,20 @@
             var distance = math.distance(aPosition, bPosition);
 
             var lod = 0;
-            for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
+            for (var i = FixedBatchLodRendererData4.Count - 1; i >= 0 ; i--)
             {
-                var isGreater = distance >= LodDescription[i];
-                lod = math.select(lod, i, isGreater);
+                var lodDistance = LodDescription[i];
+                var isGreaterOrEqual = distance >= lodDistance;
+                lod = math.select(lod, i, isGreaterOrEqual);
             }
 
-            // TODO: maybe it possible count without interlocked?
+            if (lod == FixedBatchLodRendererData4.Count - 1)
+                return false; // culled
+            
             Interlocked.Increment(ref UnsafeUtility.ArrayElementAsRef<int>(InstanceCountPerLod.GetUnsafePtr(), lod));
             LodPerInstance[instanceIndex] = lod;
+            
+            return true;
         }
     }
 }
