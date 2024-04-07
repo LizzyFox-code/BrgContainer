@@ -58,7 +58,7 @@
                         batchID = batchGroup[i],
                         materialID = lodRendererData.MaterialID,
                         meshID = lodRendererData.MeshID,
-                        submeshIndex = (ushort)batchGroup.BatchRendererData.SubMeshIndex,
+                        submeshIndex = (ushort)lodRendererData.SubMeshIndex,
                         splitVisibilityMask = 0xff,
                         flags = BatchDrawCommandFlags.None,
                         sortingPosition = 0

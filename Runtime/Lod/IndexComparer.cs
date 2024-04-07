@@ -1,4 +1,4 @@
-﻿namespace Lod
+﻿namespace BrgContainer.Runtime.Lod
 {
     using System.Collections.Generic;
     using Unity.Collections;

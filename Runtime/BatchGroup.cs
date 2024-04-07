@@ -36,7 +36,6 @@
         private Allocator m_Allocator;
         
         public readonly BatchRendererData BatchRendererData;
-        public readonly BatchLodDescription BatchLodDescription;
 
         public readonly unsafe bool IsCreated => (IntPtr) m_DataBuffer != IntPtr.Zero &&
                                                  (IntPtr) m_Batches != IntPtr.Zero &&
@@ -52,11 +51,10 @@
             get => *m_InstanceCount;
         }
 
-        public unsafe BatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, in BatchLodDescription batchLodDescription, Allocator allocator)
+        public unsafe BatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, Allocator allocator)
         {
             m_BatchDescription = batchDescription;
             BatchRendererData = rendererData;
-            BatchLodDescription = batchLodDescription;
             
             m_BufferLength = m_BatchDescription.TotalBufferSize / 16;
             m_BatchLength = m_BatchDescription.WindowCount;

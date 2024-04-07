@@ -107,12 +107,37 @@
         /// <param name="material">A mesh material.</param>
         /// <param name="extentsOffset"></param>
         /// <param name="rendererDescription">A renderer description provides a rendering metadata.</param>
+        /// <param name="lodDescription"></param>
         /// <returns>Returns a batch handle that provides some API for write and upload instance data for the GPU.</returns>
-        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, float3 extentsOffset, in RendererDescription rendererDescription, in BatchLodDescription lodDescription) // TODO: lod group
+        public BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, float3 extentsOffset, in RendererDescription rendererDescription)
         {
+            var lodGroup = new LodGroup
+            {
+                LODs = new[]
+                {
+                    new LodMeshData
+                    {
+                        Mesh = mesh,
+                        Material = material,
+                        SubMeshIndex = subMeshIndex,
+                        Distance = float.MaxValue - 1.0f
+                    }
+                },
+                Culled = float.MaxValue
+            };
+            return AddBatch(ref batchDescription, ref lodGroup, extentsOffset, rendererDescription);
+        }
+
+        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, ref LodGroup lodGroup, float3 extentsOffset, in RendererDescription rendererDescription)
+        {
+#if (UNITY_EDITOR || DEVELOPMENT_BUILD)
+            if (lodGroup.LODs.Length == 0)
+                throw new InvalidOperationException("Lod group must have at least 1 lod, but here is no one!");
+#endif
+            
             var graphicsBuffer = CreateGraphicsBuffer(BatchDescription.IsUBO, batchDescription.TotalBufferSize);
-            var rendererData = CreateRendererData(mesh, subMeshIndex, material, extentsOffset, rendererDescription);
-            var batchGroup = CreateBatchGroup(ref batchDescription, rendererData, lodDescription, graphicsBuffer.bufferHandle);
+            var rendererData = CreateRendererData(ref lodGroup, extentsOffset, rendererDescription);
+            var batchGroup = CreateBatchGroup(ref batchDescription, rendererData, graphicsBuffer.bufferHandle);
             
             var batchId = batchGroup[0];
             m_GraphicsBuffers.Add(batchId, graphicsBuffer);
@@ -214,27 +239,43 @@
             return new GraphicsBuffer(target, count, stride);
         }
 
-        private BatchGroup CreateBatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, in BatchLodDescription batchLodDescription, GraphicsBufferHandle graphicsBufferHandle)
+        private BatchGroup CreateBatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, GraphicsBufferHandle graphicsBufferHandle)
         {
-            var batchGroup = new BatchGroup(ref batchDescription, rendererData, batchLodDescription, Allocator.Persistent);
+            var batchGroup = new BatchGroup(ref batchDescription, rendererData, Allocator.Persistent);
             batchGroup.Register(m_BatchRendererGroup, graphicsBufferHandle);
 
             return batchGroup;
         }
 
-        private BatchRendererData CreateRendererData([NotNull]Mesh[] meshes, ushort subMeshIndex, [NotNull]Material[] materials, float3 extentsOffset, in RendererDescription description)
+        private BatchRendererData CreateRendererData(ref LodGroup lodGroup, float3 extentsOffset, in RendererDescription description)
         {
-            var batchRendererData = new BatchRendererData(subMeshIndex, new float3(meshes[0].bounds.extents) + extentsOffset, description);
+            var batchLodDescription = new BatchLodDescription
+            {
+                Culled = lodGroup.Culled
+            };
+
+            for (var i = 0; i < BatchLodDescription.DistanceCount - 1; i++)
+            {
+                var distance = lodGroup.Culled - 1.0f;
+                if(lodGroup.LODs.Length > i)
+                    distance = lodGroup.LODs[i].Distance;
+
+                batchLodDescription[i] = distance;
+            }
+
+            var extents = new float3(lodGroup.LODs[0].Mesh.bounds.extents) + extentsOffset;
+            var batchRendererData = new BatchRendererData(extents, description, batchLodDescription);
             for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
             {
-                var mesh = meshes[i];
-                var material = materials[i];
+                var lodData = lodGroup.LODs[i];
+                var mesh = lodData.Mesh;
+                var material = lodData.Material;
 
                 var meshId = m_BatchRendererGroup.RegisterMesh(mesh);
                 var materialId = m_BatchRendererGroup.RegisterMaterial(material);
 
                 ref var rendererData = ref batchRendererData[i];
-                rendererData = new BatchLodRendererData(meshId, materialId, subMeshIndex);
+                rendererData = new BatchLodRendererData(meshId, materialId, lodData.SubMeshIndex);
             }
 
             return batchRendererData;
@@ -290,7 +331,7 @@
                         Indices = visibleIndices.AsDeferredJobArray(),
                         LodPerInstance = lodPerInstance,
                         InstanceCountPerLod = instanceCountPerLod,
-                        LodDescription = batchGroup.BatchLodDescription,
+                        LodDescription = batchGroup.BatchRendererData.BatchLodDescription,
                         ViewerObjectToWorld = cullingContext.localToWorldMatrix
                     };
                     var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleFilter(visibleIndices, cullingBatchInstancesJobHandle);

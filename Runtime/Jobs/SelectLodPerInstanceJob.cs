@@ -35,15 +35,16 @@
 
             var distance = math.distance(aPosition, bPosition);
 
-            var lod = 0;
-            for (var i = FixedBatchLodRendererData4.Count - 1; i >= 0 ; i--)
+            const int startIndex = BatchLodDescription.DistanceCount - 1;
+            var lod = startIndex;
+            for (var i = startIndex; i >= 0 ; i--)
             {
                 var lodDistance = LodDescription[i];
                 var isGreaterOrEqual = distance >= lodDistance;
                 lod = math.select(lod, i, isGreaterOrEqual);
             }
 
-            if (lod == FixedBatchLodRendererData4.Count - 1)
+            if (lod == startIndex)
                 return false; // culled
             
             Interlocked.Increment(ref UnsafeUtility.ArrayElementAsRef<int>(InstanceCountPerLod.GetUnsafePtr(), lod));

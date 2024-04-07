@@ -1,4 +1,4 @@
-﻿namespace Lod
+﻿namespace BrgContainer.Runtime.Lod
 {
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
@@ -6,7 +6,7 @@
     [StructLayout(LayoutKind.Explicit)]
     public unsafe struct FixedBatchLodRendererData4
     {
-        private const int FloatPerData = 2;
+        private const int FloatPerData = 3;
         public const int Count = 4;
         
         [FieldOffset(0)]
@@ -26,7 +26,7 @@
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                // every 2 float (every 8 bytes)
+                // every 3 float (every 12 bytes)
                 fixed (float* ptr = &m_Buffer[index * FloatPerData])
                     return ref *(BatchLodRendererData*)ptr;
             }
