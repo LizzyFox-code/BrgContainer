@@ -11,7 +11,7 @@
     /// LOD mesh data consists of a mesh, a material, a submesh index, and a distance.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential)]
-    public struct LodMeshData : IEquatable<LodMeshData>
+    public struct LODMeshData : IEquatable<LODMeshData>
     {
         public Mesh Mesh;
         public Material Material;
@@ -25,31 +25,31 @@
         public uint SubMeshIndex;
 
         /// <summary>
-        /// Represents the distance for a level of detail (LOD) mesh.
+        /// Represents the relative distance [0-1] for a level of detail (LOD) mesh.
         /// </summary>
-        public float Distance;
+        public float ScreenRelativeTransitionHeight;
 
-        public bool Equals(LodMeshData other)
+        public bool Equals(LODMeshData other)
         {
-            return Equals(Mesh, other.Mesh) && Equals(Material, other.Material) && SubMeshIndex == other.SubMeshIndex && Distance.Equals(other.Distance);
+            return Equals(Mesh, other.Mesh) && Equals(Material, other.Material) && SubMeshIndex == other.SubMeshIndex && ScreenRelativeTransitionHeight.Equals(other.ScreenRelativeTransitionHeight);
         }
 
         public override bool Equals(object obj)
         {
-            return obj is LodMeshData other && Equals(other);
+            return obj is LODMeshData other && Equals(other);
         }
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Mesh, Material, SubMeshIndex, Distance);
+            return HashCode.Combine(Mesh, Material, SubMeshIndex, ScreenRelativeTransitionHeight);
         }
 
-        public static bool operator ==(LodMeshData left, LodMeshData right)
+        public static bool operator ==(LODMeshData left, LODMeshData right)
         {
             return left.Equals(right);
         }
 
-        public static bool operator !=(LodMeshData left, LodMeshData right)
+        public static bool operator !=(LODMeshData left, LODMeshData right)
         {
             return !left.Equals(right);
         }

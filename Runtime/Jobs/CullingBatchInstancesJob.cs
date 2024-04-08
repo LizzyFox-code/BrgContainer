@@ -1,8 +1,10 @@
 ﻿namespace BrgContainer.Runtime.Jobs
 {
     using System.Runtime.InteropServices;
+    using System.Threading;
     using Unity.Burst;
     using Unity.Collections;
+    using Unity.Collections.LowLevel.Unsafe;
     using Unity.Jobs;
     using Unity.Mathematics;
     using UnityEngine;
@@ -15,17 +17,23 @@
         public NativeArray<Plane> CullingPlanes;
         [ReadOnly]
         public NativeArray<PackedMatrix> ObjectToWorld;
+        [ReadOnly]
+        public NativeArray<int> LodPerInstance;
+        [WriteOnly, NativeDisableParallelForRestriction]
+        public NativeArray<int> InstanceCountPerLod;
         
         public int DataOffset;
-        public float3 Extents;
+        public NativeArray<float3> Extents;
         
-        public bool Execute(int index)
+        public unsafe bool Execute(int index)
         {
             var matrix = ObjectToWorld[index + DataOffset];
+            var lod = LodPerInstance[index];
+            
             var aabb = new AABB
             {
                 Center = float3.zero,
-                Extents = Extents
+                Extents = Extents[lod]
             };
             aabb = AABB.Transform(matrix.fullMatrix, aabb);
  
@@ -40,6 +48,7 @@
                     return false;
             }
 
+            Interlocked.Increment(ref UnsafeUtility.ArrayElementAsRef<int>(InstanceCountPerLod.GetUnsafePtr(), lod));
             return true;
         }
     }

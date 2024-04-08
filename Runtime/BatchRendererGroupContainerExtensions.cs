@@ -5,6 +5,7 @@
     using Unity.Collections;
     using Unity.Mathematics;
     using UnityEngine;
+    using LODGroup = Lod.LODGroup;
 #if ENABLE_IL2CPP
     using Il2Cpp;
 #endif
@@ -59,7 +60,7 @@
         /// <param name="lodGroup">The lod group.</param>
         /// <param name="rendererDescription">The description of the renderer.</param>
         /// <returns>A BatchHandle struct representing the added batch.</returns>
-        public static BatchHandle AddBatch(this BatchRendererGroupContainer container, int maxInstanceCount, ref LodGroup lodGroup, in RendererDescription rendererDescription)
+        public static BatchHandle AddBatch(this BatchRendererGroupContainer container, int maxInstanceCount, ref LODGroup lodGroup, in RendererDescription rendererDescription)
         {
             var batchDescription = new BatchDescription(maxInstanceCount, Allocator.Persistent);
             return container.AddBatch(ref batchDescription, ref lodGroup, float3.zero, rendererDescription);
@@ -74,7 +75,7 @@
         /// <param name="lodGroup">The lod group.</param>
         /// <param name="rendererDescription">The description of the renderer.</param>
         /// <returns>A BatchHandle struct representing the added batch.</returns>
-        public static BatchHandle AddBatch(this BatchRendererGroupContainer container, int maxInstanceCount, NativeArray<MaterialProperty> materialProperties, ref LodGroup lodGroup, in RendererDescription rendererDescription)
+        public static BatchHandle AddBatch(this BatchRendererGroupContainer container, int maxInstanceCount, NativeArray<MaterialProperty> materialProperties, ref LODGroup lodGroup, in RendererDescription rendererDescription)
         {
             var batchDescription = new BatchDescription(maxInstanceCount, materialProperties, Allocator.Persistent);
             return container.AddBatch(ref batchDescription, ref lodGroup, float3.zero, rendererDescription);

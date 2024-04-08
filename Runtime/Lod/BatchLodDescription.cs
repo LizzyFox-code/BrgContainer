@@ -1,33 +1,20 @@
 ﻿namespace BrgContainer.Runtime.Lod
 {
-    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
+    using Unity.Mathematics;
 
-    [StructLayout(LayoutKind.Explicit)]
-    public unsafe struct BatchLodDescription
+    [StructLayout(LayoutKind.Sequential)]
+    public readonly struct BatchLodDescription
     {
-        public const int DistanceCount = 5;
-        
-        [FieldOffset(0)]
-        internal fixed float m_Distances[DistanceCount];
+        public readonly float4 LodDistances;
+        public readonly int LodCount;
 
-        [FieldOffset(0)]
-        public float LOD0;
-        [FieldOffset(4)]
-        public float LOD1;
-        [FieldOffset(8)]
-        public float LOD2;
-        [FieldOffset(12)]
-        public float LOD3;
-        [FieldOffset(16)]
-        public float Culled;
+        public float this[int index] => LodDistances[index];
 
-        public float this[int index]
+        public BatchLodDescription(float4 distances, int lodCount)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => m_Distances[index];
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => m_Distances[index] = value;
+            LodDistances = distances;
+            LodCount = lodCount;
         }
     }
 }

@@ -7,19 +7,18 @@
     /// Represents a group of LOD (Level of Detail) meshes.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct LodGroup : IEquatable<LodGroup>
+    public struct LODGroup : IEquatable<LODGroup>
     {
-        public LodMeshData[] LODs;
-        public float Culled;
+        public LODMeshData[] LODs;
 
-        public bool Equals(LodGroup other)
+        public bool Equals(LODGroup other)
         {
-            return Equals(LODs, other.LODs) && Culled.Equals(other.Culled);
+            return Equals(LODs, other.LODs);
         }
 
         public override bool Equals(object obj)
         {
-            return obj is LodGroup other && Equals(other);
+            return obj is LODGroup other && Equals(other);
         }
 
         public override int GetHashCode()
@@ -32,15 +31,15 @@
                     hashCode = HashCode.Combine(hashCode, LODs[i].GetHashCode());
                 }
             }
-            return HashCode.Combine(hashCode, Culled);
+            return hashCode;
         }
 
-        public static bool operator ==(LodGroup left, LodGroup right)
+        public static bool operator ==(LODGroup left, LODGroup right)
         {
             return left.Equals(right);
         }
 
-        public static bool operator !=(LodGroup left, LodGroup right)
+        public static bool operator !=(LODGroup left, LODGroup right)
         {
             return !left.Equals(right);
         }
