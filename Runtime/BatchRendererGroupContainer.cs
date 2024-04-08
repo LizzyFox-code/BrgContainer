@@ -265,13 +265,13 @@
             }
             var batchLodDescription = new BatchLodDescription(lodDistances, lodGroupLODs.Length);
 
-            var extents = new NativeArray<float3>(lodGroup.LODs.Length, Allocator.Persistent);
+            var extents = new UnsafeList<float3>(lodGroup.LODs.Length, Allocator.Persistent);
             for (var i = 0; i < extents.Length; i++)
             {
                 extents[i] = new float3(lodGroup.LODs[i].Mesh.bounds.extents) + extentsOffset;
             }
             
-            var batchRendererData = new BatchRendererData(extents, description, batchLodDescription);
+            var batchRendererData = new BatchRendererData(ref extents, description, batchLodDescription);
             for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
             {
                 if(lodGroup.LODs.Length <= i)

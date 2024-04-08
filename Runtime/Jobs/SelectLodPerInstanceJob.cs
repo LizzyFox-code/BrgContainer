@@ -4,6 +4,7 @@
     using Lod;
     using Unity.Burst;
     using Unity.Collections;
+    using Unity.Collections.LowLevel.Unsafe;
     using Unity.Jobs;
     using Unity.Mathematics;
 
@@ -18,6 +19,7 @@
 
         public int DataOffset;
         
+        [ReadOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<float3> Extents;
         public LODParams LODParams;
         public BatchLodDescription LodDescription;

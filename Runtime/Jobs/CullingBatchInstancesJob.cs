@@ -23,6 +23,7 @@
         public NativeArray<int> InstanceCountPerLod;
         
         public int DataOffset;
+        [ReadOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<float3> Extents;
         
         public unsafe bool Execute(int index)

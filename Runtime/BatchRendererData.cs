@@ -4,18 +4,27 @@
     using System.Runtime.InteropServices;
     using Lod;
     using Unity.Collections;
+    using Unity.Collections.LowLevel.Unsafe;
     using Unity.Jobs;
     using Unity.Mathematics;
-
+    
     [StructLayout(LayoutKind.Sequential)]
     public struct BatchRendererData : INativeDisposable
     {
+        [NativeDisableContainerSafetyRestriction]
+        private UnsafeList<float3> m_Extents;
+        
         private FixedBatchLodRendererData4 m_BatchLodRendererData4;
         
         public readonly RendererDescription Description;
         public readonly BatchLodDescription BatchLodDescription;
 
-        public NativeArray<float3> Extents;
+        public unsafe NativeArray<float3> Extents
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => CollectionHelper.ConvertExistingDataToNativeArray<float3>(m_Extents.Ptr, m_Extents.Length,
+                m_Extents.Allocator, false);
+        }
 
         public BatchLodRendererData this[int index]
         {
@@ -24,11 +33,11 @@
             set => m_BatchLodRendererData4[index] = value;
         }
 
-        public BatchRendererData(NativeArray<float3> extents, in RendererDescription description, in BatchLodDescription batchLodDescription)
+        public BatchRendererData(ref UnsafeList<float3> extents, in RendererDescription description, in BatchLodDescription batchLodDescription)
         {
             m_BatchLodRendererData4 = default;
             
-            Extents = extents;
+            m_Extents = extents;
             Description = description;
 
             BatchLodDescription = batchLodDescription;
@@ -36,12 +45,16 @@
 
         public void Dispose()
         {
-            Extents.Dispose();
+            if(m_Extents.IsCreated)
+                m_Extents.Dispose();
         }
 
         public JobHandle Dispose(JobHandle inputDeps)
         {
-            return Extents.Dispose(inputDeps);
+            if (!m_Extents.IsCreated)
+                return inputDeps;
+            
+            return m_Extents.Dispose(inputDeps);
         }
     }
 }
