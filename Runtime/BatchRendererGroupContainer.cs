@@ -266,9 +266,9 @@
             var batchLodDescription = new BatchLodDescription(lodDistances, lodGroupLODs.Length);
 
             var extents = new UnsafeList<float3>(lodGroup.LODs.Length, Allocator.Persistent);
-            for (var i = 0; i < extents.Length; i++)
+            for (var i = 0; i < lodGroup.LODs.Length; i++)
             {
-                extents[i] = new float3(lodGroup.LODs[i].Mesh.bounds.extents) + extentsOffset;
+                extents.Add(new float3(lodGroup.LODs[i].Mesh.bounds.extents) + extentsOffset);
             }
             
             var batchRendererData = new BatchRendererData(ref extents, description, batchLodDescription);
@@ -323,7 +323,8 @@
                     
                     var lodPerInstance = new NativeArray<int>(instanceCountPerBatch, Allocator.TempJob);
                     var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData4.Count, Allocator.TempJob);
-                    
+
+                    var extents = batchGroup.BatchRendererData.Extents;
                     var lodParams = LODParams.CreateLODParams(cullingContext.lodParameters);
                     var selectLodPerInstanceJob = new SelectLodPerInstanceJob
                     {
@@ -331,7 +332,7 @@
                         LodPerInstance = lodPerInstance,
                         LodDescription = batchGroup.BatchRendererData.BatchLodDescription,
                         DataOffset = maxInstancePerWindow * batchIndex,
-                        Extents = batchGroup.BatchRendererData.Extents,
+                        Extents = extents,
                         LODParams = lodParams
                     };
                     var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleAppendByRef(visibleIndices, instanceCountPerBatch, batchHandle);
@@ -342,7 +343,7 @@
                         ObjectToWorld = objectToWorld,
                         LodPerInstance = lodPerInstance,
                         InstanceCountPerLod = instanceCountPerLod,
-                        Extents = batchGroup.BatchRendererData.Extents,
+                        Extents = extents,
                         DataOffset = maxInstancePerWindow * batchIndex
                     };
                     var cullingBatchInstancesJobHandle = cullingBatchInstancesJob.ScheduleFilterByRef(visibleIndices, selectLodPerInstanceJobHandle);
