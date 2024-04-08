@@ -279,11 +279,9 @@
                     break;
                 
                 var lodData = lodGroup.LODs[i];
-                var mesh = lodData.Mesh;
-                var material = lodData.Material;
 
-                var meshId = m_BatchRendererGroup.RegisterMesh(mesh);
-                var materialId = m_BatchRendererGroup.RegisterMaterial(material);
+                var meshId = m_BatchRendererGroup.RegisterMesh(lodData.Mesh);
+                var materialId = m_BatchRendererGroup.RegisterMaterial(lodData.Material);
 
                 batchRendererData[i] = new BatchLodRendererData(meshId, materialId, lodData.SubMeshIndex);
             }

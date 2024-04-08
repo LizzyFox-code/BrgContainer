@@ -37,7 +37,7 @@
 
             const int startIndex = BatchLodDescription.DistanceCount - 1;
             var lod = startIndex;
-            for (var i = startIndex; i >= 0 ; i--)
+            for (var i = 0; i < BatchLodDescription.DistanceCount; i++)
             {
                 var lodDistance = LodDescription[i];
                 var isGreaterOrEqual = distance >= lodDistance;

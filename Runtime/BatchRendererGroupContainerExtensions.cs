@@ -1,7 +1,9 @@
 ﻿namespace BrgContainer.Runtime
 {
     using System.Diagnostics.CodeAnalysis;
+    using Lod;
     using Unity.Collections;
+    using Unity.Mathematics;
     using UnityEngine;
 #if ENABLE_IL2CPP
     using Il2Cpp;
@@ -47,6 +49,35 @@
         {
             var batchDescription = new BatchDescription(maxInstanceCount, Allocator.Persistent);
             return container.AddBatch(ref batchDescription, mesh, subMeshIndex, material, rendererDescription);
+        }
+
+        /// <summary>
+        /// Adds a new batch to the BatchRendererGroupContainer.
+        /// </summary>
+        /// <param name="container">The BatchRendererGroupContainer to add the batch to.</param>
+        /// <param name="maxInstanceCount">The maximum number of instances in the batch.</param>
+        /// <param name="lodGroup">The lod group.</param>
+        /// <param name="rendererDescription">The description of the renderer.</param>
+        /// <returns>A BatchHandle struct representing the added batch.</returns>
+        public static BatchHandle AddBatch(this BatchRendererGroupContainer container, int maxInstanceCount, ref LodGroup lodGroup, in RendererDescription rendererDescription)
+        {
+            var batchDescription = new BatchDescription(maxInstanceCount, Allocator.Persistent);
+            return container.AddBatch(ref batchDescription, ref lodGroup, float3.zero, rendererDescription);
+        }
+
+        /// <summary>
+        /// Adds a new batch to the BatchRendererGroupContainer.
+        /// </summary>
+        /// <param name="container">The BatchRendererGroupContainer to add the batch to.</param>
+        /// <param name="maxInstanceCount">The maximum number of instances in the batch.</param>
+        /// <param name="materialProperties">The array of material properties.</param>
+        /// <param name="lodGroup">The lod group.</param>
+        /// <param name="rendererDescription">The description of the renderer.</param>
+        /// <returns>A BatchHandle struct representing the added batch.</returns>
+        public static BatchHandle AddBatch(this BatchRendererGroupContainer container, int maxInstanceCount, NativeArray<MaterialProperty> materialProperties, ref LodGroup lodGroup, in RendererDescription rendererDescription)
+        {
+            var batchDescription = new BatchDescription(maxInstanceCount, materialProperties, Allocator.Persistent);
+            return container.AddBatch(ref batchDescription, ref lodGroup, float3.zero, rendererDescription);
         }
     }
 }
