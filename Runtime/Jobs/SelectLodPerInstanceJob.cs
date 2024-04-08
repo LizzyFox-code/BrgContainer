@@ -43,7 +43,7 @@
                     return true;
                 }
             }
-            return true;
+            return false;
         }
 
         private void GetPositionAndScale(float4x4 matrix, int index, out float3 position, out float worldScale)
