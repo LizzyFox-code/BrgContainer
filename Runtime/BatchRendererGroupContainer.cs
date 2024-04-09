@@ -262,7 +262,7 @@
             {
                 var lodGroupMeshData = lodGroupLODs[i];
                 batchLodDescription.LodDistances[i] = lodGroupMeshData.ScreenRelativeTransitionHeight;
-                batchLodDescription.FadeDistances[i] = lodGroupMeshData.FadeTransitionWidth;
+                batchLodDescription.FadeWidth[i] = lodGroupMeshData.FadeTransitionWidth;
             }
 
             var extents = new UnsafeList<float3>(lodGroup.LODs.Length, Allocator.Persistent);

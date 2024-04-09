@@ -7,7 +7,7 @@
     public struct BatchLodDescription
     {
         public unsafe fixed float LodDistances[FixedBatchLodRendererData.Count];
-        public unsafe fixed float FadeDistances[FixedBatchLodRendererData.Count];
+        public unsafe fixed float FadeWidth[FixedBatchLodRendererData.Count];
         
         public readonly int LodCount;
         public readonly LODFadeMode FadeMode;

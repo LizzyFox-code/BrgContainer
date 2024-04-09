@@ -39,22 +39,14 @@
             return !left.Equals(right);
         }
 
-        public static LODParams CreateLODParams(LODParameters parameters, float overrideLODBias = 0.0f)
+        public static LODParams CreateLODParams(LODParameters parameters)
         {
             LODParams lodParams;
             lodParams.CameraPosition = parameters.cameraPosition;
             lodParams.IsOrthographic = parameters.isOrthographic;
             lodParams.OrthoSize = parameters.orthoSize;
-
-            if (overrideLODBias == 0.0f)
-            {
-                lodParams.DistanceScale = CalculateLodDistanceScale(parameters.fieldOfView, QualitySettings.lodBias,
-                    lodParams.IsOrthographic, lodParams.OrthoSize);
-            }
-            else
-            {
-                lodParams.DistanceScale = 1.0f / overrideLODBias;
-            }
+            lodParams.DistanceScale = CalculateLodDistanceScale(parameters.fieldOfView, QualitySettings.lodBias,
+                lodParams.IsOrthographic, lodParams.OrthoSize);
 
             return lodParams;
         }

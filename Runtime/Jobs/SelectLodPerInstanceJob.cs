@@ -1,6 +1,5 @@
 ﻿namespace BrgContainer.Runtime.Jobs
 {
-    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using Lod;
     using Unity.Burst;
@@ -35,8 +34,7 @@
             for (var i = 0; i < LodDescription.LodCount; i++)
             {
                 GetPositionAndScale(matrix, i, out var position, out var worldScale);
-                var distance = math.select(LODParams.DistanceScale * math.length(LODParams.CameraPosition - position),
-                    LODParams.DistanceScale, LODParams.IsOrthographic);
+                var distance = math.select(LODParams.DistanceScale * math.length(LODParams.CameraPosition - position), LODParams.DistanceScale, LODParams.IsOrthographic);
                 
                 GetRelativeLodDistances(LodDescription, worldScale, out var lodDistances0, out var lodDistances1);
                 var lodRange = LODRange.Create(lodDistances0, lodDistances1,1 << i);
@@ -46,10 +44,10 @@
                     if(LodDescription.FadeMode == LODFadeMode.CrossFade)
                     {
                         var diff = lodRange.MaxDistance - distance;
-                        var fadeDistance = (lodRange.MaxDistance - lodRange.MinDistance) * LodDescription.FadeDistances[i];
+                        var fadeDistance = (lodRange.MaxDistance - lodRange.MinDistance) * LodDescription.FadeWidth[i];
                         if (diff < fadeDistance)
                         {
-                            fadeValue = math.sin(diff / fadeDistance * math.PI / 2);
+                            fadeValue = math.sin(diff / fadeDistance * math.PI * 0.5f);
                         }
                     }
 
@@ -61,12 +59,14 @@
 
         private void AddInstances(int index, int lod, float fadeValue)
         {
+            fadeValue = math.remap(0.0f, 1.0f, 0.5f, 1.0f, fadeValue);
+            
             LodFadePerInstance[index] = new LodFade
             {
                 Value = fadeValue,
                 Lod = lod
             };
-                    
+            
             var instanceIndex = index & 0x00FFFFFF;
             instanceIndex |= lod << 24;
             VisibleIndicesWriter.AddNoResize(instanceIndex);
