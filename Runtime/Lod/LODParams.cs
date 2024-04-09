@@ -69,8 +69,7 @@
             else
             {
                 var halfAngle = math.tan(math.radians(fieldOfView * 0.5F));
-                // Half angle at 90 degrees is 1.0 (So we skip halfAngle / 1.0 calculation)
-                distanceScale = (2.0f * halfAngle) / globalLodBias;
+                distanceScale = 2.0f * halfAngle / globalLodBias;
             }
 
             return distanceScale;

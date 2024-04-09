@@ -268,17 +268,25 @@
             var extents = new UnsafeList<float3>(lodGroup.LODs.Length, Allocator.Persistent);
             for (var i = 0; i < lodGroup.LODs.Length; i++)
             {
-                extents.Add(new float3(lodGroup.LODs[i].Mesh.bounds.extents) + extentsOffset);
+                var lod = lodGroup.LODs[i];
+                var lodExtents = float3.zero;
+                if (lod.Mesh != null)
+                    lodExtents = new float3(lodGroup.LODs[i].Mesh.bounds.extents) + extentsOffset;
+                
+                extents.Add(lodExtents);
             }
             
             var batchRendererData = new BatchRendererData(ref extents, description, batchLodDescription);
-            for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
+            for (var i = 0; i < lodGroup.LODs.Length; i++)
             {
-                if(lodGroup.LODs.Length <= i)
-                    break;
-                
                 var lodData = lodGroup.LODs[i];
 
+                if(lodData.Mesh == null || lodData.Material == null)
+                {
+                    batchRendererData[i] = default;
+                    continue;
+                }
+                
                 var meshId = m_BatchRendererGroup.RegisterMesh(lodData.Mesh);
                 var materialId = m_BatchRendererGroup.RegisterMaterial(lodData.Material);
 
