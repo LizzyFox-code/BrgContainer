@@ -28,8 +28,7 @@
         /// Represents the relative distance [0-1] for a level of detail (LOD) mesh.
         /// </summary>
         public float ScreenRelativeTransitionHeight;
-
-        public LODFadeMode FadeMode;
+        
         public float FadeTransitionWidth;
 
         public bool Equals(LODMeshData other)

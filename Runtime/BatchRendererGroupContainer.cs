@@ -254,13 +254,15 @@
             return batchGroup;
         }
 
-        private BatchRendererData CreateRendererData(ref LODGroup lodGroup, float3 extentsOffset, in RendererDescription description)
+        private unsafe BatchRendererData CreateRendererData(ref LODGroup lodGroup, float3 extentsOffset, in RendererDescription description)
         {
             var lodGroupLODs = lodGroup.LODs;
-            var batchLodDescription = new BatchLodDescription(lodGroupLODs.Length);
+            var batchLodDescription = new BatchLodDescription(lodGroupLODs.Length, lodGroup.FadeMode);
             for (var i = 0; i < lodGroupLODs.Length; ++i)
             {
-                batchLodDescription[i] = lodGroupLODs[i].ScreenRelativeTransitionHeight;
+                var lodGroupMeshData = lodGroupLODs[i];
+                batchLodDescription.LodDistances[i] = lodGroupMeshData.ScreenRelativeTransitionHeight;
+                batchLodDescription.FadeDistances[i] = lodGroupMeshData.FadeTransitionWidth;
             }
 
             var extents = new UnsafeList<float3>(lodGroup.LODs.Length, Allocator.Persistent);
@@ -287,7 +289,7 @@
                 var meshId = m_BatchRendererGroup.RegisterMesh(lodData.Mesh);
                 var materialId = m_BatchRendererGroup.RegisterMaterial(lodData.Material);
 
-                batchRendererData[i] = new BatchLodRendererData(meshId, materialId, lodData.SubMeshIndex, lodData.FadeMode, lodData.FadeTransitionWidth);
+                batchRendererData[i] = new BatchLodRendererData(meshId, materialId, lodData.SubMeshIndex, lodData.FadeTransitionWidth);
             }
 
             return batchRendererData;
@@ -327,6 +329,7 @@
                     var visibleIndices = new NativeList<int>(instanceCountPerBatch, Allocator.TempJob);
                     
                     var lodPerInstance = new NativeArray<int>(instanceCountPerBatch, Allocator.TempJob);
+                    var fadePerInstance = new NativeArray<float>(instanceCountPerBatch, Allocator.TempJob);
                     var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData.Count, Allocator.TempJob);
 
                     var extents = batchGroup.BatchRendererData.Extents;
@@ -335,6 +338,7 @@
                     {
                         ObjectToWorld = objectToWorld,
                         LodPerInstance = lodPerInstance,
+                        FadePerInstance = fadePerInstance,
                         LodDescription = batchGroup.BatchRendererData.BatchLodDescription,
                         DataOffset = maxInstancePerWindow * batchIndex,
                         Extents = extents,
@@ -352,7 +356,7 @@
                         DataOffset = maxInstancePerWindow * batchIndex
                     };
                     var cullingBatchInstancesJobHandle = cullingBatchInstancesJob.ScheduleFilterByRef(visibleIndices, selectLodPerInstanceJobHandle);
-                    
+
                     var sortJob = new SimpleSortJob<int, IndexComparer>
                     {
                         Array = visibleIndices.AsDeferredJobArray(),
@@ -360,6 +364,15 @@
                     };
                     var sortJobHandle = sortJob.ScheduleByRef(cullingBatchInstancesJobHandle); // sort by LOD
                     sortJobHandle = lodPerInstance.Dispose(sortJobHandle);
+                    
+                    var remapFadeValuesPerInstanceJob = new RemapFadeValuesPerInstanceJob
+                    {
+                        VisibleIndices = visibleIndices.AsDeferredJobArray(),
+                        FadePerInstance = fadePerInstance
+                    };
+                    var remapFadeValuesPerInstanceJobHandle = remapFadeValuesPerInstanceJob.ScheduleByRef(visibleIndices, 128,
+                        sortJobHandle);
+                    remapFadeValuesPerInstanceJobHandle = fadePerInstance.Dispose(remapFadeValuesPerInstanceJobHandle);
 
                     var copyVisibleIndicesToMapJob = new CopyVisibleIndicesToMapJob
                     {
@@ -369,7 +382,7 @@
                         VisibleCountPerChunk = visibleCountPerBatch,
                         BatchIndex = offset + batchIndex
                     };
-                    batchHandle = copyVisibleIndicesToMapJob.ScheduleByRef(sortJobHandle);
+                    batchHandle = copyVisibleIndicesToMapJob.ScheduleByRef(remapFadeValuesPerInstanceJobHandle);
                     batchHandle = instanceCountPerLod.Dispose(batchHandle);
                     batchHandle = visibleIndices.Dispose(batchHandle);
                 }

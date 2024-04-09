@@ -7,7 +7,7 @@
     using Unity.Collections.LowLevel.Unsafe;
     using Unity.Jobs;
     using Unity.Mathematics;
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct BatchRendererData : INativeDisposable
     {

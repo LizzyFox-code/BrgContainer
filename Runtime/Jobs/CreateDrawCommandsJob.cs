@@ -52,6 +52,7 @@
                         continue;
                     
                     var lodRendererData = batchGroup.BatchRendererData[lod];
+                    var lodDescription = batchGroup.BatchRendererData.BatchLodDescription;
                     var batchDrawCommand = new BatchDrawCommand
                     {
                         visibleOffset = (uint) visibleOffset,
@@ -61,7 +62,7 @@
                         meshID = lodRendererData.MeshID,
                         submeshIndex = (ushort)lodRendererData.SubMeshIndex,
                         splitVisibilityMask = 0xff,
-                        flags = lodRendererData.FadeMode == LODFadeMode.CrossFade ? BatchDrawCommandFlags.LODCrossFade : BatchDrawCommandFlags.None,
+                        flags = lodDescription.FadeMode == LODFadeMode.CrossFade ? BatchDrawCommandFlags.LODCrossFade : BatchDrawCommandFlags.None,
                         sortingPosition = 0
                     };
 

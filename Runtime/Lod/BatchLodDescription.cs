@@ -1,26 +1,25 @@
 ﻿namespace BrgContainer.Runtime.Lod
 {
     using System.Runtime.InteropServices;
+    using UnityEngine;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct BatchLodDescription
     {
-        private unsafe fixed float m_LodDistances[FixedBatchLodRendererData.Count];
+        public unsafe fixed float LodDistances[FixedBatchLodRendererData.Count];
+        public unsafe fixed float FadeDistances[FixedBatchLodRendererData.Count];
+        
         public readonly int LodCount;
+        public readonly LODFadeMode FadeMode;
 
-        public unsafe float this[int index]
-        {
-            get => m_LodDistances[index];
-            set => m_LodDistances[index] = value;
-        }
-
-        public unsafe BatchLodDescription(int lodCount)
+        public unsafe BatchLodDescription(int lodCount, LODFadeMode fadeMode)
         {
             LodCount = lodCount;
+            FadeMode = fadeMode;
 
             for (var i = 0; i < FixedBatchLodRendererData.Count; i++)
             {
-                m_LodDistances[i] = float.PositiveInfinity;
+                LodDistances[i] = float.PositiveInfinity;
             }
         }
     }

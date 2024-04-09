@@ -2,6 +2,7 @@
 {
     using System;
     using System.Runtime.InteropServices;
+    using UnityEngine;
 
     /// <summary>
     /// Represents a group of LOD (Level of Detail) meshes.
@@ -10,6 +11,7 @@
     public struct LODGroup : IEquatable<LODGroup>
     {
         public LODMeshData[] LODs;
+        public LODFadeMode FadeMode;
 
         public bool Equals(LODGroup other)
         {

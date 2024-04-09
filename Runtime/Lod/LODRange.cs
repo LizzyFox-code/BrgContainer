@@ -4,10 +4,16 @@
     using Unity.Mathematics;
 
     [StructLayout(LayoutKind.Sequential)]
-    internal struct LODRange
+    internal readonly struct LODRange
     {
-        public float MinDist;
-        public float MaxDist;
+        public readonly float MinDistance;
+        public readonly float MaxDistance;
+
+        public LODRange(float minDistance, float maxDistance)
+        {
+            MinDistance = minDistance;
+            MaxDistance = maxDistance;
+        }
 
         public static LODRange Create(float4 lodDistances0, float4 lodDistances1, int lodMask)
         {
@@ -54,11 +60,7 @@
                 maxDist = math.max(maxDist, lodDistances1.w);
             }
 
-            return new LODRange
-            {
-                MinDist = minDist,
-                MaxDist = maxDist
-            };
+            return new LODRange(minDist, maxDist);
         }
     }
 }
