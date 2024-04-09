@@ -6,6 +6,7 @@
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
     using Unity.Jobs;
+    using UnityEngine;
     using UnityEngine.Rendering;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -60,7 +61,7 @@
                         meshID = lodRendererData.MeshID,
                         submeshIndex = (ushort)lodRendererData.SubMeshIndex,
                         splitVisibilityMask = 0xff,
-                        flags = BatchDrawCommandFlags.None,
+                        flags = lodRendererData.FadeMode == LODFadeMode.CrossFade ? BatchDrawCommandFlags.LODCrossFade : BatchDrawCommandFlags.None,
                         sortingPosition = 0
                     };
 

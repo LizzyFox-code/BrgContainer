@@ -6,7 +6,7 @@
     [StructLayout(LayoutKind.Explicit)]
     public unsafe struct FixedBatchLodRendererData
     {
-        private const int FloatPerData = 3;
+        private const int FloatPerData = 5;
         public const int Count = 8;
 
         [FieldOffset(0)]
@@ -14,20 +14,20 @@
 
         [FieldOffset(0)]
         public BatchLodRendererData LodRendererData0;
-        [FieldOffset(12)]
+        [FieldOffset(20)]
         public BatchLodRendererData LodRendererData1;
-        [FieldOffset(24)]
+        [FieldOffset(40)]
         public BatchLodRendererData LodRendererData2;
-        [FieldOffset(36)]
+        [FieldOffset(60)]
         public BatchLodRendererData LodRendererData3;
         
-        [FieldOffset(48)]
+        [FieldOffset(80)]
         public BatchLodRendererData LodRendererData4;
-        [FieldOffset(60)]
+        [FieldOffset(100)]
         public BatchLodRendererData LodRendererData5;
-        [FieldOffset(72)]
+        [FieldOffset(120)]
         public BatchLodRendererData LodRendererData6;
-        [FieldOffset(84)]
+        [FieldOffset(140)]
         public BatchLodRendererData LodRendererData7;
 
         public BatchLodRendererData this[int index]

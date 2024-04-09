@@ -29,6 +29,9 @@
         /// </summary>
         public float ScreenRelativeTransitionHeight;
 
+        public LODFadeMode FadeMode;
+        public float FadeTransitionWidth;
+
         public bool Equals(LODMeshData other)
         {
             return Equals(Mesh, other.Mesh) && Equals(Material, other.Material) && SubMeshIndex == other.SubMeshIndex && ScreenRelativeTransitionHeight.Equals(other.ScreenRelativeTransitionHeight);

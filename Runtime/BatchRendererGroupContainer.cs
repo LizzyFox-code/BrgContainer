@@ -287,7 +287,7 @@
                 var meshId = m_BatchRendererGroup.RegisterMesh(lodData.Mesh);
                 var materialId = m_BatchRendererGroup.RegisterMaterial(lodData.Material);
 
-                batchRendererData[i] = new BatchLodRendererData(meshId, materialId, lodData.SubMeshIndex);
+                batchRendererData[i] = new BatchLodRendererData(meshId, materialId, lodData.SubMeshIndex, lodData.FadeMode, lodData.FadeTransitionWidth);
             }
 
             return batchRendererData;
