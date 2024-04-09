@@ -49,24 +49,38 @@
                         var fadeDistance = (lodRange.MaxDistance - lodRange.MinDistance) * LodDescription.FadeDistances[i];
                         if (diff < fadeDistance)
                         {
-                            fadeValue = CalculateFadeValue(diff, fadeDistance);
+                            fadeValue = math.sin(diff / fadeDistance * math.PI / 2);
                         }
                     }
-                    
-                    LodFadePerInstance[index] = new LodFade
-                    {
-                        Value = fadeValue,
-                        Lod = i
-                    };
-                    
-                    var instanceIndex = index & 0x00FFFFFF;
-                    instanceIndex |= i << 24;
-                    
-                    VisibleIndicesWriter.AddNoResize(instanceIndex);
-                    
+
+                    AddInstances(index, i, fadeValue);
                     return;
                 }
             }
+        }
+
+        private void AddInstances(int index, int lod, float fadeValue)
+        {
+            LodFadePerInstance[index] = new LodFade
+            {
+                Value = fadeValue,
+                Lod = lod
+            };
+                    
+            var instanceIndex = index & 0x00FFFFFF;
+            instanceIndex |= lod << 24;
+            VisibleIndicesWriter.AddNoResize(instanceIndex);
+                    
+            if(math.abs(fadeValue - 1.0f) < 0.01f)
+                return;
+                    
+            var nextLod = lod + 1;
+            if(nextLod >= LodDescription.LodCount)
+                return;
+                    
+            var nextInstanceIndex = index & 0x00FFFFFF;
+            nextInstanceIndex |= nextLod << 24;
+            VisibleIndicesWriter.AddNoResize(nextInstanceIndex);
         }
 
         private void GetPositionAndScale(float4x4 matrix, int index, out float3 position, out float worldScale)
@@ -99,12 +113,6 @@
                 else
                     lodDistances1[i - 4] = d;
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float CalculateFadeValue(float diff, float fadeDistance)
-        {
-            return math.sin(diff / fadeDistance * math.PI / 2);
         }
     }
 }

@@ -22,7 +22,7 @@
             var lod = rawInstanceIndex >> 24;
             var rawLodFade = FadePerInstanceReader[instanceIndex];
             
-            var fadeValue = (int)(math.select(1.0f - rawLodFade.Value, rawLodFade.Value, rawLodFade.Lod == lod) * 255);
+            var fadeValue = (int)math.round(math.select(1.0f - rawLodFade.Value, rawLodFade.Value, rawLodFade.Lod == lod) * 255);
             fadeValue = math.max(0, math.min(255, fadeValue));
             
             instanceIndex |= fadeValue << 24;
