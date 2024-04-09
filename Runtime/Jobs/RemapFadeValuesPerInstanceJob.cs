@@ -18,7 +18,8 @@
         public void Execute(int index)
         {
             var instanceIndex = VisibleIndices[index];
-            var fadeValue = math.asint(FadePerInstance[instanceIndex]);
+            var fadeValue = (int)(FadePerInstance[instanceIndex] * 255);
+            fadeValue = math.max(0, math.min(255, fadeValue));
 
             instanceIndex &= 0x00FFFFFF;
             instanceIndex |= fadeValue << 24;

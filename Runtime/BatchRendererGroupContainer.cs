@@ -318,6 +318,8 @@
             for (var batchGroupIndex = 0; batchGroupIndex < batchGroups.Length; batchGroupIndex++)
             {
                 var batchGroup = batchGroups[batchGroupIndex];
+                var lodDescription = batchGroup.BatchRendererData.BatchLodDescription;
+                
                 var maxInstancePerWindow = batchGroup.m_BatchDescription.MaxInstancePerWindow;
                 var windowCount = batchGroup.GetWindowCount();
                 var objectToWorld = batchGroup.GetObjectToWorldArray(Allocator.TempJob);
@@ -325,11 +327,12 @@
                 JobHandle batchHandle = default;
                 for (var batchIndex = 0; batchIndex < windowCount; batchIndex++)
                 {
-                    var instanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(batchIndex);
-                    var visibleIndices = new NativeList<int>(instanceCountPerBatch, Allocator.TempJob);
+                    var maxInstanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(batchIndex);
                     
-                    var lodPerInstance = new NativeArray<int>(instanceCountPerBatch, Allocator.TempJob);
-                    var fadePerInstance = new NativeArray<float>(instanceCountPerBatch, Allocator.TempJob);
+                    var visibleIndices = new NativeList<int>(maxInstanceCountPerBatch, Allocator.TempJob);
+                    var lodMaskPerInstance = new NativeArray<int>(maxInstanceCountPerBatch, Allocator.TempJob);
+                    var fadePerInstance = new NativeArray<float>(maxInstanceCountPerBatch, Allocator.TempJob);
+                    
                     var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData.Count, Allocator.TempJob);
 
                     var extents = batchGroup.BatchRendererData.Extents;
@@ -337,33 +340,35 @@
                     var selectLodPerInstanceJob = new SelectLodPerInstanceJob
                     {
                         ObjectToWorld = objectToWorld,
-                        LodPerInstance = lodPerInstance,
+                        LodMaskPerInstance = lodMaskPerInstance,
                         FadePerInstance = fadePerInstance,
-                        LodDescription = batchGroup.BatchRendererData.BatchLodDescription,
+                        LodDescription = lodDescription,
                         DataOffset = maxInstancePerWindow * batchIndex,
                         Extents = extents,
                         LODParams = lodParams
                     };
-                    var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleAppendByRef(visibleIndices, instanceCountPerBatch, batchHandle);
+                    var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleAppendByRef(visibleIndices, maxInstanceCountPerBatch, batchHandle);
                     
                     var cullingBatchInstancesJob = new CullingBatchInstancesJob
                     {
                         CullingPlanes = cullingContext.cullingPlanes,
                         ObjectToWorld = objectToWorld,
-                        LodPerInstance = lodPerInstance,
+                        LodPerInstance = lodMaskPerInstance,
                         InstanceCountPerLod = instanceCountPerLod,
                         Extents = extents,
                         DataOffset = maxInstancePerWindow * batchIndex
                     };
                     var cullingBatchInstancesJobHandle = cullingBatchInstancesJob.ScheduleFilterByRef(visibleIndices, selectLodPerInstanceJobHandle);
+                    
+                    
 
                     var sortJob = new SimpleSortJob<int, IndexComparer>
                     {
                         Array = visibleIndices.AsDeferredJobArray(),
-                        Comparer = new IndexComparer(lodPerInstance)
+                        Comparer = new IndexComparer(lodMaskPerInstance)
                     };
                     var sortJobHandle = sortJob.ScheduleByRef(cullingBatchInstancesJobHandle); // sort by LOD
-                    sortJobHandle = lodPerInstance.Dispose(sortJobHandle);
+                    sortJobHandle = lodMaskPerInstance.Dispose(sortJobHandle);
                     
                     var remapFadeValuesPerInstanceJob = new RemapFadeValuesPerInstanceJob
                     {

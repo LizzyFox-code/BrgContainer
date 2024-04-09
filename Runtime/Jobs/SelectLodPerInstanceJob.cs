@@ -16,7 +16,7 @@
         [ReadOnly]
         public NativeArray<PackedMatrix> ObjectToWorld;
         [WriteOnly, NativeDisableParallelForRestriction]
-        public NativeArray<int> LodPerInstance;
+        public NativeArray<int> LodMaskPerInstance;
         [WriteOnly, NativeDisableParallelForRestriction]
         public NativeArray<float> FadePerInstance;
 
@@ -30,6 +30,8 @@
         public unsafe bool Execute(int index)
         {
             var matrix = ObjectToWorld[index + DataOffset].fullMatrix;
+            var currentMask = 1 << 0;
+            
             for (var i = 0; i < LodDescription.LodCount; i++)
             {
                 GetPositionAndScale(matrix, i, out var position, out var worldScale);
@@ -39,17 +41,27 @@
                 GetRelativeLodDistances(LodDescription, worldScale, out var lodDistances0, out var lodDistances1);
                 var lodRange = LODRange.Create(lodDistances0, lodDistances1,1 << i);
                 
-                var lodIntersect = distance < lodRange.MaxDistance && distance >= lodRange.MinDistance;
-                if (lodIntersect)
+                if (distance < lodRange.MaxDistance)
                 {
                     var fadeValue = 1.0f;
                     if(LodDescription.FadeMode == LODFadeMode.CrossFade)
-                        fadeValue = CalculateFadeValue(lodRange, distance, LodDescription.FadeDistances[i]);
+                    {
+                        var diff = lodRange.MaxDistance - distance;
+                        var fadeDistance = (lodRange.MaxDistance - lodRange.MinDistance) * LodDescription.FadeDistances[i];
+                        if (diff < fadeDistance)
+                        {
+                            currentMask |= currentMask << 1;
+                            fadeValue = CalculateFadeValue(diff, fadeDistance);
+                        }
+                    }
 
                     FadePerInstance[index] = fadeValue;
-                    LodPerInstance[index] = i;
+                    LodMaskPerInstance[index] = currentMask;
+                    
                     return true;
                 }
+
+                currentMask <<= 1;
             }
             return false;
         }
@@ -86,16 +98,9 @@
             }
         }
 
-        private static float CalculateFadeValue(in LODRange lodRange, float distance, float fadeTransitionWidth)
+        private static float CalculateFadeValue(float diff, float fadeDistance)
         {
-            var diff = lodRange.MaxDistance - distance;
-            var fadeDistance = math.lerp(lodRange.MinDistance, lodRange.MaxDistance, fadeTransitionWidth);
-            if (diff < fadeDistance)
-            {
-                return diff / fadeDistance;
-            }
-
-            return 1.0f;
+            return math.sin(diff / fadeDistance * math.PI / 2);
         }
     }
 }
