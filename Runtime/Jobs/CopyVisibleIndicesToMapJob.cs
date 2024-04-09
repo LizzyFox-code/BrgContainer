@@ -33,7 +33,7 @@
                 UnsafeUtility.AlignOf<int>(), Allocator.TempJob, 0);
             UnsafeUtility.MemCpy(instanceIndices.Indices, VisibleIndices.GetUnsafeReadOnlyPtr(), UnsafeUtility.SizeOf<int>() * VisibleIndices.Length);
 
-            for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
+            for (var i = 0; i < FixedBatchLodRendererData.Count; i++)
             {
                 instanceIndices.InstanceCountPerLod[i] = InstanceCountPerLod[i];
             }

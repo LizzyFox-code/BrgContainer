@@ -7,7 +7,7 @@
     [StructLayout(LayoutKind.Sequential)]
     internal struct BatchInstanceData
     {
-        public unsafe fixed int InstanceCountPerLod[FixedBatchLodRendererData4.Count];
+        public unsafe fixed int InstanceCountPerLod[FixedBatchLodRendererData.Count];
         [NativeDisableUnsafePtrRestriction]
         public unsafe int* Indices;
     }

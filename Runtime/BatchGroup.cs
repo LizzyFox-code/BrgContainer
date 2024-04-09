@@ -99,7 +99,7 @@
                 batchRendererGroup.RemoveBatch(m_Batches[i]);
             }
 
-            for (var i = 0; i < FixedBatchLodRendererData4.Count; i++)
+            for (var i = 0; i < FixedBatchLodRendererData.Count; i++)
             {
                 var lodRendererData = BatchRendererData[i];
                 

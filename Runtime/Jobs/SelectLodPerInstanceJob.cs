@@ -33,8 +33,8 @@
                 var distance = math.select(LODParams.DistanceScale * math.length(LODParams.CameraPosition - position),
                     LODParams.DistanceScale, LODParams.IsOrthographic);
                 
-                var relativeDistances = GetRelativeLodDistances(LodDescription, worldScale);
-                var lodRange = LODRange.Create(relativeDistances, 1 << i);
+                GetRelativeLodDistances(LodDescription, worldScale, out var lodDistances0, out var lodDistances1);
+                var lodRange = LODRange.Create(lodDistances0, lodDistances1,1 << i);
                 
                 var lodIntersect = distance < lodRange.MaxDist && distance >= lodRange.MinDist;
                 if (lodIntersect)
@@ -63,17 +63,19 @@
             worldScale = math.max(worldScale, math.abs(size.z));
         }
 
-        private static float4 GetRelativeLodDistances(BatchLodDescription lodDescription, float worldSpaceSize)
+        private static void GetRelativeLodDistances(BatchLodDescription lodDescription, float worldSpaceSize, out float4 lodDistances0, out float4 lodDistances1)
         {
-            var lodDistances = new float4(float.PositiveInfinity);
-            var lodGroupLODs = lodDescription.LodDistances;
+            lodDistances0 = new float4(float.PositiveInfinity);
+            lodDistances1 = new float4(float.PositiveInfinity);
+            
             for (var i = 0; i < lodDescription.LodCount; ++i)
             {
-                var d = worldSpaceSize / lodGroupLODs[i];
-                lodDistances[i] = d;
+                var d = worldSpaceSize / lodDescription[i];
+                if (i < 4)
+                    lodDistances0[i] = d;
+                else
+                    lodDistances1[i - 4] = d;
             }
-
-            return lodDistances;
         }
     }
 }

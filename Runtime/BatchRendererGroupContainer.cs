@@ -256,14 +256,12 @@
 
         private BatchRendererData CreateRendererData(ref LODGroup lodGroup, float3 extentsOffset, in RendererDescription description)
         {
-            var lodDistances = new float4(float.PositiveInfinity);
             var lodGroupLODs = lodGroup.LODs;
-            
+            var batchLodDescription = new BatchLodDescription(lodGroupLODs.Length);
             for (var i = 0; i < lodGroupLODs.Length; ++i)
             {
-                lodDistances[i] = lodGroupLODs[i].ScreenRelativeTransitionHeight;
+                batchLodDescription[i] = lodGroupLODs[i].ScreenRelativeTransitionHeight;
             }
-            var batchLodDescription = new BatchLodDescription(lodDistances, lodGroupLODs.Length);
 
             var extents = new UnsafeList<float3>(lodGroup.LODs.Length, Allocator.Persistent);
             for (var i = 0; i < lodGroup.LODs.Length; i++)
@@ -271,16 +269,15 @@
                 var lod = lodGroup.LODs[i];
                 var lodExtents = float3.zero;
                 if (lod.Mesh != null)
-                    lodExtents = new float3(lodGroup.LODs[i].Mesh.bounds.extents) + extentsOffset;
+                    lodExtents = new float3(lod.Mesh.bounds.extents) + extentsOffset;
                 
                 extents.Add(lodExtents);
             }
             
-            var batchRendererData = new BatchRendererData(ref extents, description, batchLodDescription);
+            var batchRendererData = new BatchRendererData(ref extents, description, ref batchLodDescription);
             for (var i = 0; i < lodGroup.LODs.Length; i++)
             {
                 var lodData = lodGroup.LODs[i];
-
                 if(lodData.Mesh == null || lodData.Material == null)
                 {
                     batchRendererData[i] = default;
@@ -330,7 +327,7 @@
                     var visibleIndices = new NativeList<int>(instanceCountPerBatch, Allocator.TempJob);
                     
                     var lodPerInstance = new NativeArray<int>(instanceCountPerBatch, Allocator.TempJob);
-                    var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData4.Count, Allocator.TempJob);
+                    var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData.Count, Allocator.TempJob);
 
                     var extents = batchGroup.BatchRendererData.Extents;
                     var lodParams = LODParams.CreateLODParams(cullingContext.lodParameters);

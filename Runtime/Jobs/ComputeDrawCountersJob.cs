@@ -44,7 +44,7 @@
 
                 visibleCountPerBatchGroup += visibleCountPerBatch;
                 var batchInstanceData = InstanceDataPerBatch[BatchOffset + i];
-                for (var lod = 0; lod < FixedBatchLodRendererData4.Count; lod++)
+                for (var lod = 0; lod < FixedBatchLodRendererData.Count; lod++)
                 {
                     validSubBatchCount = math.select(validSubBatchCount, validSubBatchCount + 1,
                         batchInstanceData.InstanceCountPerLod[lod] > 0);

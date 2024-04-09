@@ -14,7 +14,7 @@
         [NativeDisableContainerSafetyRestriction]
         private UnsafeList<float3> m_Extents;
         
-        private FixedBatchLodRendererData4 m_BatchLodRendererData4;
+        private FixedBatchLodRendererData m_BatchLodRendererData;
         
         public readonly RendererDescription Description;
         public readonly BatchLodDescription BatchLodDescription;
@@ -29,13 +29,13 @@
         public BatchLodRendererData this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            readonly get => m_BatchLodRendererData4[index];
-            set => m_BatchLodRendererData4[index] = value;
+            readonly get => m_BatchLodRendererData[index];
+            set => m_BatchLodRendererData[index] = value;
         }
 
-        public BatchRendererData(ref UnsafeList<float3> extents, in RendererDescription description, in BatchLodDescription batchLodDescription)
+        public BatchRendererData(ref UnsafeList<float3> extents, in RendererDescription description, ref BatchLodDescription batchLodDescription)
         {
-            m_BatchLodRendererData4 = default;
+            m_BatchLodRendererData = default;
             
             m_Extents = extents;
             Description = description;

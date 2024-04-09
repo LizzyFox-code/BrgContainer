@@ -44,7 +44,7 @@
                     continue;
 
                 var batchInstanceData = InstanceDataPerBatch[batchIndex];
-                for (var lod = 0; lod < FixedBatchLodRendererData4.Count; lod++)
+                for (var lod = 0; lod < FixedBatchLodRendererData.Count; lod++)
                 {
                     var instanceCountPerLod = batchInstanceData.InstanceCountPerLod[lod];
                     if(instanceCountPerLod == 0) // there is no any visible instances for this level of details

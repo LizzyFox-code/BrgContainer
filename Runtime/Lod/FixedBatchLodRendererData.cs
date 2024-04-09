@@ -4,11 +4,11 @@
     using System.Runtime.InteropServices;
 
     [StructLayout(LayoutKind.Explicit)]
-    public unsafe struct FixedBatchLodRendererData4
+    public unsafe struct FixedBatchLodRendererData
     {
         private const int FloatPerData = 3;
-        public const int Count = 4;
-        
+        public const int Count = 8;
+
         [FieldOffset(0)]
         private fixed uint m_Buffer[Count * FloatPerData];
 
@@ -20,13 +20,21 @@
         public BatchLodRendererData LodRendererData2;
         [FieldOffset(36)]
         public BatchLodRendererData LodRendererData3;
+        
+        [FieldOffset(48)]
+        public BatchLodRendererData LodRendererData4;
+        [FieldOffset(60)]
+        public BatchLodRendererData LodRendererData5;
+        [FieldOffset(72)]
+        public BatchLodRendererData LodRendererData6;
+        [FieldOffset(84)]
+        public BatchLodRendererData LodRendererData7;
 
         public BatchLodRendererData this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             readonly get
             {
-                // every 3 float (every 12 bytes)
                 fixed (uint* ptr = &m_Buffer[index * FloatPerData])
                     return *(BatchLodRendererData*)ptr;
             }
