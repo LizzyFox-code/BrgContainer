@@ -17,8 +17,6 @@
         public NativeArray<Plane> CullingPlanes;
         [ReadOnly]
         public NativeArray<PackedMatrix> ObjectToWorld;
-        [ReadOnly]
-        public NativeArray<int> LodPerInstance;
         [WriteOnly, NativeDisableParallelForRestriction]
         public NativeArray<int> InstanceCountPerLod;
         
@@ -28,8 +26,13 @@
         
         public unsafe bool Execute(int index)
         {
-            var matrix = ObjectToWorld[index + DataOffset];
-            var lod = LodPerInstance[index];
+            var instanceIndex = index & 0x00FFFFFF;
+            var matrix = ObjectToWorld[instanceIndex + DataOffset];
+            
+            var lod = index >> 24;
+            var extents = Extents[lod];
+            if (math.any(extents <= math.EPSILON))
+                return false;
             
             var aabb = new AABB
             {

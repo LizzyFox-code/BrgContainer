@@ -329,10 +329,9 @@
                 {
                     var maxInstanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(batchIndex);
                     
-                    var visibleIndices = new NativeList<int>(maxInstanceCountPerBatch, Allocator.TempJob);
-                    var lodMaskPerInstance = new NativeArray<int>(maxInstanceCountPerBatch, Allocator.TempJob);
-                    var fadePerInstance = new NativeArray<float>(maxInstanceCountPerBatch, Allocator.TempJob);
+                    var visibleIndices = new NativeList<int>(maxInstanceCountPerBatch * lodDescription.LodCount, Allocator.TempJob);
                     
+                    var lodFadePerInstance = new NativeArray<LodFade>(maxInstanceCountPerBatch, Allocator.TempJob);
                     var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData.Count, Allocator.TempJob);
 
                     var extents = batchGroup.BatchRendererData.Extents;
@@ -340,44 +339,61 @@
                     var selectLodPerInstanceJob = new SelectLodPerInstanceJob
                     {
                         ObjectToWorld = objectToWorld,
-                        LodMaskPerInstance = lodMaskPerInstance,
-                        FadePerInstance = fadePerInstance,
+                        LodFadePerInstance = lodFadePerInstance,
+                        VisibleIndicesWriter = visibleIndices.AsParallelWriter(),
                         LodDescription = lodDescription,
                         DataOffset = maxInstancePerWindow * batchIndex,
                         Extents = extents,
                         LODParams = lodParams
                     };
-                    var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleAppendByRef(visibleIndices, maxInstanceCountPerBatch, batchHandle);
+                    var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleParallelByRef(maxInstanceCountPerBatch, 64, batchHandle);
+
+                    // copy of visible indices
+                    var indicesCopy = new NativeArray<int>(maxInstanceCountPerBatch, Allocator.TempJob);
+                    var copyArrayJob = new CopyArrayJob<int>
+                    {
+                        Source = visibleIndices.AsDeferredJobArray(),
+                        Destination = indicesCopy
+                    };
+                    var copyArrayJobHandle = copyArrayJob.ScheduleByRef(selectLodPerInstanceJobHandle);
+
+                    var populateVisibleIndicesJob = new PopulateVisibleIndicesJob
+                    {
+                        VisibleIndicesReader = indicesCopy,
+                        VisibleIndicesWriter = visibleIndices.AsParallelWriter(),
+                        LodFadePerInstance = lodFadePerInstance,
+                        LodDescription = lodDescription
+                    };
+                    var populateVisibleIndicesHandle = populateVisibleIndicesJob.ScheduleByRef(visibleIndices, 128, copyArrayJobHandle);
+                    populateVisibleIndicesHandle = indicesCopy.Dispose(populateVisibleIndicesHandle);
                     
+                    // culling
                     var cullingBatchInstancesJob = new CullingBatchInstancesJob
                     {
                         CullingPlanes = cullingContext.cullingPlanes,
                         ObjectToWorld = objectToWorld,
-                        LodPerInstance = lodMaskPerInstance,
                         InstanceCountPerLod = instanceCountPerLod,
                         Extents = extents,
                         DataOffset = maxInstancePerWindow * batchIndex
                     };
-                    var cullingBatchInstancesJobHandle = cullingBatchInstancesJob.ScheduleFilterByRef(visibleIndices, selectLodPerInstanceJobHandle);
-                    
-                    
-
+                    var cullingBatchInstancesJobHandle = cullingBatchInstancesJob.ScheduleFilterByRef(visibleIndices, populateVisibleIndicesHandle);
+ 
                     var sortJob = new SimpleSortJob<int, IndexComparer>
                     {
                         Array = visibleIndices.AsDeferredJobArray(),
-                        Comparer = new IndexComparer(lodMaskPerInstance)
+                        Comparer = new IndexComparer()
                     };
                     var sortJobHandle = sortJob.ScheduleByRef(cullingBatchInstancesJobHandle); // sort by LOD
-                    sortJobHandle = lodMaskPerInstance.Dispose(sortJobHandle);
                     
+                    // remap fade values to indices
                     var remapFadeValuesPerInstanceJob = new RemapFadeValuesPerInstanceJob
                     {
                         VisibleIndices = visibleIndices.AsDeferredJobArray(),
-                        FadePerInstance = fadePerInstance
+                        FadePerInstanceReader = lodFadePerInstance
                     };
                     var remapFadeValuesPerInstanceJobHandle = remapFadeValuesPerInstanceJob.ScheduleByRef(visibleIndices, 128,
                         sortJobHandle);
-                    remapFadeValuesPerInstanceJobHandle = fadePerInstance.Dispose(remapFadeValuesPerInstanceJobHandle);
+                    remapFadeValuesPerInstanceJobHandle = lodFadePerInstance.Dispose(remapFadeValuesPerInstanceJobHandle);
 
                     var copyVisibleIndicesToMapJob = new CopyVisibleIndicesToMapJob
                     {

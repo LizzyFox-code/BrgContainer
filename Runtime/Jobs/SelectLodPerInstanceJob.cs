@@ -1,5 +1,6 @@
 ﻿namespace BrgContainer.Runtime.Jobs
 {
+    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using Lod;
     using Unity.Burst;
@@ -11,14 +12,15 @@
 
     [StructLayout(LayoutKind.Sequential)]
     [BurstCompile(OptimizeFor = OptimizeFor.Performance, FloatMode = FloatMode.Fast, CompileSynchronously = true, FloatPrecision = FloatPrecision.Low, DisableSafetyChecks = true)]
-    internal struct SelectLodPerInstanceJob : IJobFilter
+    internal struct SelectLodPerInstanceJob : IJobFor
     {
         [ReadOnly]
         public NativeArray<PackedMatrix> ObjectToWorld;
+
+        [WriteOnly]
+        public NativeList<int>.ParallelWriter VisibleIndicesWriter;
         [WriteOnly, NativeDisableParallelForRestriction]
-        public NativeArray<int> LodMaskPerInstance;
-        [WriteOnly, NativeDisableParallelForRestriction]
-        public NativeArray<float> FadePerInstance;
+        public NativeArray<LodFade> LodFadePerInstance;
 
         public int DataOffset;
         
@@ -27,11 +29,9 @@
         public LODParams LODParams;
         public BatchLodDescription LodDescription;
         
-        public unsafe bool Execute(int index)
+        public unsafe void Execute(int index)
         {
             var matrix = ObjectToWorld[index + DataOffset].fullMatrix;
-            var currentMask = 1 << 0;
-            
             for (var i = 0; i < LodDescription.LodCount; i++)
             {
                 GetPositionAndScale(matrix, i, out var position, out var worldScale);
@@ -40,8 +40,7 @@
                 
                 GetRelativeLodDistances(LodDescription, worldScale, out var lodDistances0, out var lodDistances1);
                 var lodRange = LODRange.Create(lodDistances0, lodDistances1,1 << i);
-                
-                if (distance < lodRange.MaxDistance)
+                if (distance < lodRange.MaxDistance && distance >= lodRange.MinDistance)
                 {
                     var fadeValue = 1.0f;
                     if(LodDescription.FadeMode == LODFadeMode.CrossFade)
@@ -50,20 +49,24 @@
                         var fadeDistance = (lodRange.MaxDistance - lodRange.MinDistance) * LodDescription.FadeDistances[i];
                         if (diff < fadeDistance)
                         {
-                            currentMask |= currentMask << 1;
                             fadeValue = CalculateFadeValue(diff, fadeDistance);
                         }
                     }
-
-                    FadePerInstance[index] = fadeValue;
-                    LodMaskPerInstance[index] = currentMask;
                     
-                    return true;
+                    LodFadePerInstance[index] = new LodFade
+                    {
+                        Value = fadeValue,
+                        Lod = i
+                    };
+                    
+                    var instanceIndex = index & 0x00FFFFFF;
+                    instanceIndex |= i << 24;
+                    
+                    VisibleIndicesWriter.AddNoResize(instanceIndex);
+                    
+                    return;
                 }
-
-                currentMask <<= 1;
             }
-            return false;
         }
 
         private void GetPositionAndScale(float4x4 matrix, int index, out float3 position, out float worldScale)
@@ -98,6 +101,7 @@
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static float CalculateFadeValue(float diff, float fadeDistance)
         {
             return math.sin(diff / fadeDistance * math.PI / 2);

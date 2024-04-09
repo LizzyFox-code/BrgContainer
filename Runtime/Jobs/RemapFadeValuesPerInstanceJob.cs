@@ -11,17 +11,20 @@
     internal struct RemapFadeValuesPerInstanceJob : IJobParallelForDefer
     {
         [ReadOnly]
-        public NativeArray<float> FadePerInstance;
+        public NativeArray<LodFade> FadePerInstanceReader;
         
         public NativeArray<int> VisibleIndices;
         
         public void Execute(int index)
         {
-            var instanceIndex = VisibleIndices[index];
-            var fadeValue = (int)(FadePerInstance[instanceIndex] * 255);
+            var rawInstanceIndex = VisibleIndices[index];
+            var instanceIndex = rawInstanceIndex & 0x00FFFFFF;
+            var lod = rawInstanceIndex >> 24;
+            var rawLodFade = FadePerInstanceReader[instanceIndex];
+            
+            var fadeValue = (int)(math.select(1.0f - rawLodFade.Value, rawLodFade.Value, rawLodFade.Lod == lod) * 255);
             fadeValue = math.max(0, math.min(255, fadeValue));
-
-            instanceIndex &= 0x00FFFFFF;
+            
             instanceIndex |= fadeValue << 24;
 
             VisibleIndices[index] = instanceIndex;
