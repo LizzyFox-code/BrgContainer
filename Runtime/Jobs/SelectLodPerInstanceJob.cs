@@ -43,11 +43,11 @@
                     var fadeValue = 1.0f;
                     if(LodDescription.FadeMode == LODFadeMode.CrossFade)
                     {
-                        var diff = lodRange.MaxDistance - distance;
-                        var fadeDistance = (lodRange.MaxDistance - lodRange.MinDistance) * LodDescription.FadeWidth[i];
+                        var diff = math.max(0.0f, lodRange.MaxDistance - distance);
+                        var fadeDistance = math.max(0.0f, lodRange.MaxDistance - lodRange.MinDistance) * LodDescription.FadeWidth[i];
                         if (diff < fadeDistance)
                         {
-                            fadeValue = math.sin(diff / fadeDistance * math.PI * 0.5f);
+                            fadeValue = math.saturate(math.sin(diff / fadeDistance * math.PI * 0.5f));
                         }
                     }
 
@@ -59,8 +59,6 @@
 
         private void AddInstances(int index, int lod, float fadeValue)
         {
-            fadeValue = math.remap(0.0f, 1.0f, 0.5f, 1.0f, fadeValue);
-            
             LodFadePerInstance[index] = new LodFade
             {
                 Value = fadeValue,
