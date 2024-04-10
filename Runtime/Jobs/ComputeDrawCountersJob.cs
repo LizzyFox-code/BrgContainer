@@ -2,10 +2,12 @@
 {
     using System.Runtime.InteropServices;
     using System.Threading;
+    using Lod;
     using Unity.Burst;
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
     using Unity.Jobs;
+    using Unity.Mathematics;
 
     [StructLayout(LayoutKind.Sequential)]
     [BurstCompile(OptimizeFor = OptimizeFor.Performance, FloatMode = FloatMode.Fast, CompileSynchronously = true, FloatPrecision = FloatPrecision.Low, DisableSafetyChecks = true)]
@@ -17,6 +19,9 @@
         public NativeArray<int> VisibleCountPerBatch;
         [NativeDisableContainerSafetyRestriction]
         public NativeArray<BatchGroupDrawRange> DrawRangesData;
+        
+        [ReadOnly]
+        public NativeArray<BatchInstanceData> InstanceDataPerBatch;
 
         [ReadOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<BatchGroup> BatchGroups;
@@ -34,11 +39,16 @@
             for (var i = 0; i < subBatchCount; i++)
             {
                 var visibleCountPerBatch = VisibleCountPerBatch[BatchOffset + i];
-                if(visibleCountPerBatch == 0) // there is no any visible instances for this batch
+                if (visibleCountPerBatch == 0) // there is no any visible instances for this batch
                     continue;
 
                 visibleCountPerBatchGroup += visibleCountPerBatch;
-                validSubBatchCount++;
+                var batchInstanceData = InstanceDataPerBatch[BatchOffset + i];
+                for (var lod = 0; lod < FixedBatchLodRendererData.Count; lod++)
+                {
+                    validSubBatchCount = math.select(validSubBatchCount, validSubBatchCount + 1,
+                        batchInstanceData.InstanceCountPerLod[lod] > 0);
+                }
             }
             
             ref var drawRangeDataRef = ref UnsafeUtility.ArrayElementAsRef<BatchGroupDrawRange>(DrawRangesData.GetUnsafePtr(), BatchGroupIndex);

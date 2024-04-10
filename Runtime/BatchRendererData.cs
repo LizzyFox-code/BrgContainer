@@ -1,51 +1,60 @@
 ﻿namespace BrgContainer.Runtime
 {
-    using System;
+    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
+    using Lod;
+    using Unity.Collections;
+    using Unity.Collections.LowLevel.Unsafe;
+    using Unity.Jobs;
     using Unity.Mathematics;
-    using UnityEngine.Rendering;
 
     [StructLayout(LayoutKind.Sequential)]
-    public readonly struct BatchRendererData : IEquatable<BatchRendererData>
+    public struct BatchRendererData : INativeDisposable
     {
-        public readonly BatchMeshID MeshID;
-        public readonly BatchMaterialID MaterialID;
-        public readonly ushort SubMeshIndex;
+        [NativeDisableContainerSafetyRestriction]
+        private UnsafeList<float3> m_Extents;
+        
+        private FixedBatchLodRendererData m_BatchLodRendererData;
+        
         public readonly RendererDescription Description;
-        public readonly float3 Extents;
+        public readonly BatchLodDescription BatchLodDescription;
 
-        public BatchRendererData(BatchMeshID meshID, BatchMaterialID materialID, ushort subMeshIndex, float3 extents, in RendererDescription description)
+        public unsafe NativeArray<float3> Extents
         {
-            MeshID = meshID;
-            MaterialID = materialID;
-            SubMeshIndex = subMeshIndex;
-            Extents = extents;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => CollectionHelper.ConvertExistingDataToNativeArray<float3>(m_Extents.Ptr, m_Extents.Length,
+                m_Extents.Allocator, false);
+        }
+
+        public BatchLodRendererData this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            readonly get => m_BatchLodRendererData[index];
+            set => m_BatchLodRendererData[index] = value;
+        }
+
+        public BatchRendererData(ref UnsafeList<float3> extents, in RendererDescription description, ref BatchLodDescription batchLodDescription)
+        {
+            m_BatchLodRendererData = default;
+            
+            m_Extents = extents;
             Description = description;
+
+            BatchLodDescription = batchLodDescription;
         }
 
-        public bool Equals(BatchRendererData other)
+        public void Dispose()
         {
-            return MeshID.Equals(other.MeshID) && MaterialID.Equals(other.MaterialID) && SubMeshIndex == other.SubMeshIndex;
+            if(m_Extents.IsCreated)
+                m_Extents.Dispose();
         }
 
-        public override bool Equals(object obj)
+        public JobHandle Dispose(JobHandle inputDeps)
         {
-            return obj is BatchRendererData other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(MeshID, MaterialID, SubMeshIndex);
-        }
-
-        public static bool operator ==(BatchRendererData left, BatchRendererData right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(BatchRendererData left, BatchRendererData right)
-        {
-            return !left.Equals(right);
+            if (!m_Extents.IsCreated)
+                return inputDeps;
+            
+            return m_Extents.Dispose(inputDeps);
         }
     }
 }

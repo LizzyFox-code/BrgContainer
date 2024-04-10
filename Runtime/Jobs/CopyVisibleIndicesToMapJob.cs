@@ -1,6 +1,7 @@
 ﻿namespace BrgContainer.Runtime.Jobs
 {
     using System.Runtime.InteropServices;
+    using Lod;
     using Unity.Burst;
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
@@ -11,9 +12,12 @@
     internal struct CopyVisibleIndicesToMapJob : IJob
     {
         [WriteOnly, NativeDisableContainerSafetyRestriction]
-        public NativeArray<BatchInstanceIndices> VisibleIndicesPerBatch;
-        [NativeDisableContainerSafetyRestriction]
-        public NativeList<int> VisibleIndices;
+        public NativeArray<BatchInstanceData> InstanceDataPerBatch;
+        [ReadOnly]
+        public NativeArray<int> InstanceCountPerLod;
+        
+        [ReadOnly]
+        public NativeArray<int> VisibleIndices;
         [WriteOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<int> VisibleCountPerChunk;
         
@@ -24,15 +28,17 @@
             if(VisibleIndices.Length == 0)
                 return;
             
-            var instanceIndices = new BatchInstanceIndices
-            {
-                Indices = (int*) UnsafeUtility.Malloc(UnsafeUtility.SizeOf<int>() * VisibleIndices.Length,
-                    UnsafeUtility.AlignOf<int>(), Allocator.TempJob)
-            };
-            
-            UnsafeUtility.MemCpy(instanceIndices.Indices, VisibleIndices.GetUnsafePtr(), VisibleIndices.Length * UnsafeUtility.SizeOf<int>());
+            BatchInstanceData instanceIndices = default;
+            instanceIndices.Indices = (int*)UnsafeUtility.MallocTracked(UnsafeUtility.SizeOf<int>() * VisibleIndices.Length,
+                UnsafeUtility.AlignOf<int>(), Allocator.TempJob, 0);
+            UnsafeUtility.MemCpy(instanceIndices.Indices, VisibleIndices.GetUnsafeReadOnlyPtr(), UnsafeUtility.SizeOf<int>() * VisibleIndices.Length);
 
-            VisibleIndicesPerBatch[BatchIndex] = instanceIndices;
+            for (var i = 0; i < FixedBatchLodRendererData.Count; i++)
+            {
+                instanceIndices.InstanceCountPerLod[i] = InstanceCountPerLod[i];
+            }
+            
+            InstanceDataPerBatch[BatchIndex] = instanceIndices;
             VisibleCountPerChunk[BatchIndex] = VisibleIndices.Length;
         }
     }

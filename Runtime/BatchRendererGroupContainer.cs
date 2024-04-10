@@ -8,6 +8,7 @@
     using System.Runtime.InteropServices;
     using System.Threading;
     using Jobs;
+    using Lod;
     using Unity.Burst;
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
@@ -16,6 +17,7 @@
     using Unity.Mathematics;
     using UnityEngine;
     using UnityEngine.Rendering;
+    using LODGroup = Lod.LODGroup;
 #if ENABLE_IL2CPP
     using Il2Cpp;
 #endif
@@ -107,11 +109,42 @@
         /// <param name="extentsOffset"></param>
         /// <param name="rendererDescription">A renderer description provides a rendering metadata.</param>
         /// <returns>Returns a batch handle that provides some API for write and upload instance data for the GPU.</returns>
-        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, float3 extentsOffset, in RendererDescription rendererDescription)
+        public BatchHandle AddBatch(ref BatchDescription batchDescription, [NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, float3 extentsOffset, in RendererDescription rendererDescription)
         {
+            var lodGroup = new LODGroup
+            {
+                LODs = new[]
+                {
+                    new LODMeshData
+                    {
+                        Mesh = mesh,
+                        Material = material,
+                        SubMeshIndex = subMeshIndex,
+                        ScreenRelativeTransitionHeight = 0.0f
+                    }
+                }
+            };
+            return AddBatch(ref batchDescription, ref lodGroup, extentsOffset, rendererDescription);
+        }
+
+        /// <summary>
+        /// Adds a batch to the BatchRendererGroupContainer.
+        /// </summary>
+        /// <param name="batchDescription">The batch description.</param>
+        /// <param name="lodGroup">The LOD group.</param>
+        /// <param name="extentsOffset">The extents offset.</param>
+        /// <param name="rendererDescription">The renderer description.</param>
+        /// <returns>The batch handle.</returns>
+        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, ref LODGroup lodGroup, float3 extentsOffset, in RendererDescription rendererDescription)
+        {
+#if (UNITY_EDITOR || DEVELOPMENT_BUILD)
+            if (lodGroup.LODs.Length == 0)
+                throw new InvalidOperationException("Lod group must have at least 1 lod, but here is no one!");
+#endif
+            
             var graphicsBuffer = CreateGraphicsBuffer(BatchDescription.IsUBO, batchDescription.TotalBufferSize);
-            var rendererData = CreateRendererData(mesh, subMeshIndex, material, extentsOffset, rendererDescription);
-            var batchGroup = CreateBatchGroup(ref batchDescription, rendererData, graphicsBuffer.bufferHandle);
+            var rendererData = CreateRendererData(ref lodGroup, extentsOffset, rendererDescription);
+            var batchGroup = CreateBatchGroup(ref batchDescription, ref rendererData, graphicsBuffer.bufferHandle);
             
             var batchId = batchGroup[0];
             m_GraphicsBuffers.Add(batchId, graphicsBuffer);
@@ -213,7 +246,7 @@
             return new GraphicsBuffer(target, count, stride);
         }
 
-        private BatchGroup CreateBatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, GraphicsBufferHandle graphicsBufferHandle)
+        private BatchGroup CreateBatchGroup(ref BatchDescription batchDescription, ref BatchRendererData rendererData, GraphicsBufferHandle graphicsBufferHandle)
         {
             var batchGroup = new BatchGroup(ref batchDescription, rendererData, Allocator.Persistent);
             batchGroup.Register(m_BatchRendererGroup, graphicsBufferHandle);
@@ -221,19 +254,52 @@
             return batchGroup;
         }
 
-        private BatchRendererData CreateRendererData([NotNull]Mesh mesh, ushort subMeshIndex, [NotNull]Material material, float3 extentsOffset, in RendererDescription description)
+        private unsafe BatchRendererData CreateRendererData(ref LODGroup lodGroup, float3 extentsOffset, in RendererDescription description)
         {
-            var meshId = m_BatchRendererGroup.RegisterMesh(mesh);
-            var materialId = m_BatchRendererGroup.RegisterMaterial(material);
+            var lodGroupLODs = lodGroup.LODs;
+            var batchLodDescription = new BatchLodDescription(lodGroupLODs.Length, lodGroup.FadeMode);
+            for (var i = 0; i < lodGroupLODs.Length; ++i)
+            {
+                var lodGroupMeshData = lodGroupLODs[i];
+                batchLodDescription.LodDistances[i] = lodGroupMeshData.ScreenRelativeTransitionHeight;
+                batchLodDescription.FadeWidth[i] = lodGroupMeshData.FadeTransitionWidth;
+            }
+
+            var extents = new UnsafeList<float3>(lodGroup.LODs.Length, Allocator.Persistent);
+            for (var i = 0; i < lodGroup.LODs.Length; i++)
+            {
+                var lod = lodGroup.LODs[i];
+                var lodExtents = float3.zero;
+                if (lod.Mesh != null)
+                    lodExtents = new float3(lod.Mesh.bounds.extents) + extentsOffset;
+                
+                extents.Add(lodExtents);
+            }
             
-            return new BatchRendererData(meshId, materialId, subMeshIndex, new float3(mesh.bounds.extents) + extentsOffset, description);
+            var batchRendererData = new BatchRendererData(ref extents, description, ref batchLodDescription);
+            for (var i = 0; i < lodGroup.LODs.Length; i++)
+            {
+                var lodData = lodGroup.LODs[i];
+                if(lodData.Mesh == null || lodData.Material == null)
+                {
+                    batchRendererData[i] = default;
+                    continue;
+                }
+                
+                var meshId = m_BatchRendererGroup.RegisterMesh(lodData.Mesh);
+                var materialId = m_BatchRendererGroup.RegisterMaterial(lodData.Material);
+
+                batchRendererData[i] = new BatchLodRendererData(meshId, materialId, lodData.SubMeshIndex, lodData.FadeTransitionWidth);
+            }
+
+            return batchRendererData;
         }
 
         [BurstCompile]
-        private unsafe JobHandle CullingCallback(BatchRendererGroup renderergroup, BatchCullingContext cullingcontext,
-            BatchCullingOutput cullingoutput, IntPtr usercontext)
+        private unsafe JobHandle CullingCallback(BatchRendererGroup rendererGroup, BatchCullingContext cullingContext,
+            BatchCullingOutput cullingOutput, IntPtr userContext)
         {
-            cullingoutput.drawCommands[0] = new BatchCullingOutputDrawCommands();
+            cullingOutput.drawCommands[0] = new BatchCullingOutputDrawCommands();
             
             var batchGroups = m_Groups.GetValueArray(Allocator.TempJob);
 
@@ -244,46 +310,88 @@
             if(batchCount == 0)
                 return batchGroups.Dispose(default);
 
-            var visibleIndicesPerBatch = new NativeArray<BatchInstanceIndices>(batchCount, Allocator.TempJob);
+            var instanceDataPerBatch = new NativeArray<BatchInstanceData>(batchCount, Allocator.TempJob);
             var visibleCountPerBatch = new NativeArray<int>(batchCount, Allocator.TempJob);
+            
+            var lodParams = LODParams.CreateLODParams(cullingContext.lodParameters);
 
             var offset = 0;
             var batchJobHandles = stackalloc JobHandle[batchGroups.Length];
-            for (var i = 0; i < batchGroups.Length; i++)
+            for (var batchGroupIndex = 0; batchGroupIndex < batchGroups.Length; batchGroupIndex++)
             {
-                var batchGroup = batchGroups[i];
+                var batchGroup = batchGroups[batchGroupIndex];
+                var lodDescription = batchGroup.BatchRendererData.BatchLodDescription;
+                
                 var maxInstancePerWindow = batchGroup.m_BatchDescription.MaxInstancePerWindow;
                 var windowCount = batchGroup.GetWindowCount();
                 var objectToWorld = batchGroup.GetObjectToWorldArray(Allocator.TempJob);
 
                 JobHandle batchHandle = default;
-                for (var b = 0; b < windowCount; b++)
+                for (var batchIndex = 0; batchIndex < windowCount; batchIndex++)
                 {
-                    var instanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(b);
-                    var visibleIndices = new NativeList<int>(instanceCountPerBatch, Allocator.TempJob);
+                    var maxInstanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(batchIndex);
                     
-                    var cullingJob = new CullingBatchInstancesJob
-                    {
-                        CullingPlanes = cullingcontext.cullingPlanes,
-                        ObjectToWorld = objectToWorld,
-                        Extents = batchGroup.BatchRendererData.Extents,
-                        DataOffset = maxInstancePerWindow * b
-                    };
-                    var jobHandle = cullingJob.ScheduleAppendByRef(visibleIndices, instanceCountPerBatch, batchHandle);
+                    var visibleIndices = new NativeList<int>(maxInstanceCountPerBatch * 2, Allocator.TempJob);
+                    
+                    var lodFadePerInstance = new NativeArray<LodFade>(maxInstanceCountPerBatch, Allocator.TempJob);
+                    var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData.Count, Allocator.TempJob);
 
-                    var copyJob = new CopyVisibleIndicesToMapJob
+                    var extents = batchGroup.BatchRendererData.Extents;
+                    var selectLodPerInstanceJob = new SelectLodPerInstanceJob
                     {
-                        VisibleIndicesPerBatch = visibleIndicesPerBatch,
-                        VisibleIndices = visibleIndices,
-                        VisibleCountPerChunk = visibleCountPerBatch,
-                        BatchIndex = offset + b
+                        ObjectToWorld = objectToWorld,
+                        LodFadePerInstance = lodFadePerInstance,
+                        VisibleIndicesWriter = visibleIndices.AsParallelWriter(),
+                        LodDescription = lodDescription,
+                        DataOffset = maxInstancePerWindow * batchIndex,
+                        Extents = extents,
+                        LODParams = lodParams
                     };
-                    batchHandle = copyJob.ScheduleByRef(jobHandle);
+                    var selectLodPerInstanceJobHandle = selectLodPerInstanceJob.ScheduleParallelByRef(maxInstanceCountPerBatch, 64, batchHandle);
+                    
+                    // culling
+                    var cullingBatchInstancesJob = new CullingBatchInstancesJob
+                    {
+                        CullingPlanes = cullingContext.cullingPlanes,
+                        ObjectToWorld = objectToWorld,
+                        InstanceCountPerLod = instanceCountPerLod,
+                        Extents = extents,
+                        DataOffset = maxInstancePerWindow * batchIndex
+                    };
+                    var cullingBatchInstancesJobHandle = cullingBatchInstancesJob.ScheduleFilterByRef(visibleIndices, selectLodPerInstanceJobHandle);
+ 
+                    var sortJob = new SimpleSortJob<int, IndexComparer>
+                    {
+                        Array = visibleIndices.AsDeferredJobArray(),
+                        Comparer = new IndexComparer()
+                    };
+                    var sortJobHandle = sortJob.ScheduleByRef(cullingBatchInstancesJobHandle); // sort by LOD
+                    
+                    // remap fade values to indices
+                    var remapFadeValuesPerInstanceJob = new RemapFadeValuesPerInstanceJob
+                    {
+                        VisibleIndices = visibleIndices.AsDeferredJobArray(),
+                        FadePerInstanceReader = lodFadePerInstance
+                    };
+                    var remapFadeValuesPerInstanceJobHandle = remapFadeValuesPerInstanceJob.ScheduleByRef(visibleIndices, 128,
+                        sortJobHandle);
+                    remapFadeValuesPerInstanceJobHandle = lodFadePerInstance.Dispose(remapFadeValuesPerInstanceJobHandle);
+
+                    var copyVisibleIndicesToMapJob = new CopyVisibleIndicesToMapJob
+                    {
+                        InstanceDataPerBatch = instanceDataPerBatch,
+                        VisibleIndices = visibleIndices.AsDeferredJobArray(),
+                        InstanceCountPerLod = instanceCountPerLod,
+                        VisibleCountPerChunk = visibleCountPerBatch,
+                        BatchIndex = offset + batchIndex
+                    };
+                    batchHandle = copyVisibleIndicesToMapJob.ScheduleByRef(remapFadeValuesPerInstanceJobHandle);
+                    batchHandle = instanceCountPerLod.Dispose(batchHandle);
                     batchHandle = visibleIndices.Dispose(batchHandle);
                 }
 
                 offset += windowCount;
-                batchJobHandles[i] = objectToWorld.Dispose(batchHandle);
+                batchJobHandles[batchGroupIndex] = objectToWorld.Dispose(batchHandle);
             }
 
             var cullingHandle = JobHandleUnsafeUtility.CombineDependencies(batchJobHandles, batchGroups.Length);
@@ -304,7 +412,8 @@
                     DrawRangesData = drawRangeData,
                     BatchGroups = batchGroups,
                     BatchGroupIndex = i,
-                    BatchOffset = offset
+                    BatchOffset = offset,
+                    InstanceDataPerBatch = instanceDataPerBatch
                 };
                     
                 offset += windowCount;
@@ -313,7 +422,7 @@
             
             var countersHandle = JobHandleUnsafeUtility.CombineDependencies(batchJobHandles, batchGroups.Length);
 
-            var drawCommands = (BatchCullingOutputDrawCommands*) cullingoutput.drawCommands.GetUnsafePtr();
+            var drawCommands = (BatchCullingOutputDrawCommands*) cullingOutput.drawCommands.GetUnsafePtr();
             var allocateOutputDrawCommandsJob = new AllocateOutputDrawCommandsJob
             {
                 OutputDrawCommands = drawCommands,
@@ -335,6 +444,7 @@
                 BatchGroups = batchGroups,
                 DrawRangeData = drawRangeData,
                 VisibleCountPerBatch = visibleCountPerBatch,
+                InstanceDataPerBatch = instanceDataPerBatch,
                 OutputDrawCommands = drawCommands
             };
             var createDrawCommandsHandle = createDrawCommandsJob.ScheduleParallelByRef(batchGroups.Length, 64, createDrawRangesHandle);
@@ -343,15 +453,17 @@
             {
                 BatchGroups = batchGroups,
                 VisibleCountPerBatch = visibleCountPerBatch,
-                VisibleIndicesPerBatch = visibleIndicesPerBatch,
+                InstanceDataPerBatch = instanceDataPerBatch,
                 DrawRangesData = drawRangeData,
                 OutputDrawCommands = drawCommands
             };
 
             var resultHandle = copyVisibilityIndicesToArrayJob.ScheduleParallelByRef(batchGroups.Length, 32, createDrawCommandsHandle);
+            resultHandle = JobHandle.CombineDependencies(instanceDataPerBatch.Dispose(resultHandle),
+                visibleCountPerBatch.Dispose(resultHandle));
+            resultHandle = JobHandle.CombineDependencies(drawRangeData.Dispose(resultHandle), batchGroups.Dispose(resultHandle));
 
-            return JobHandle.CombineDependencies(JobHandle.CombineDependencies(visibleIndicesPerBatch.Dispose(resultHandle), visibleCountPerBatch.Dispose(resultHandle)), 
-                drawRangeData.Dispose(resultHandle), batchGroups.Dispose(resultHandle));
+            return resultHandle;
         }
     }
 }

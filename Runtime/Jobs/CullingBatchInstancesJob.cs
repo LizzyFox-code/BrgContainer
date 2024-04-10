@@ -1,12 +1,14 @@
 ﻿namespace BrgContainer.Runtime.Jobs
 {
     using System.Runtime.InteropServices;
+    using System.Threading;
     using Unity.Burst;
     using Unity.Collections;
+    using Unity.Collections.LowLevel.Unsafe;
     using Unity.Jobs;
     using Unity.Mathematics;
     using UnityEngine;
-    
+
     [StructLayout(LayoutKind.Sequential)]
     [BurstCompile(OptimizeFor = OptimizeFor.Performance, FloatMode = FloatMode.Fast, CompileSynchronously = true, FloatPrecision = FloatPrecision.Low, DisableSafetyChecks = true)]
     internal struct CullingBatchInstancesJob : IJobFilter
@@ -15,17 +17,27 @@
         public NativeArray<Plane> CullingPlanes;
         [ReadOnly]
         public NativeArray<PackedMatrix> ObjectToWorld;
-
-        public int DataOffset;
-        public float3 Extents;
+        [WriteOnly, NativeDisableParallelForRestriction]
+        public NativeArray<int> InstanceCountPerLod;
         
-        public bool Execute(int index)
+        public int DataOffset;
+        [ReadOnly, NativeDisableContainerSafetyRestriction]
+        public NativeArray<float3> Extents;
+        
+        public unsafe bool Execute(int index)
         {
-            var matrix = ObjectToWorld[index + DataOffset];
+            var instanceIndex = index & 0x00FFFFFF;
+            var matrix = ObjectToWorld[instanceIndex + DataOffset];
+            
+            var lod = index >> 24;
+            var extents = Extents[lod];
+            if (math.any(extents <= math.EPSILON))
+                return false;
+            
             var aabb = new AABB
             {
                 Center = float3.zero,
-                Extents = Extents
+                Extents = Extents[lod]
             };
             aabb = AABB.Transform(matrix.fullMatrix, aabb);
  
@@ -40,6 +52,7 @@
                     return false;
             }
 
+            Interlocked.Increment(ref UnsafeUtility.ArrayElementAsRef<int>(InstanceCountPerLod.GetUnsafePtr(), lod));
             return true;
         }
     }

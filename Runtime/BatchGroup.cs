@@ -8,6 +8,7 @@
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using System.Threading;
+    using Lod;
     using Unity.Burst;
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
@@ -30,19 +31,17 @@
         [NativeDisableUnsafePtrRestriction]
         internal unsafe int* m_InstanceCount;
         
-        private readonly int m_BatchLength;
+        public readonly int Length;
         private readonly int m_BufferLength;
         private Allocator m_Allocator;
         
-        public readonly BatchRendererData BatchRendererData;
+        public BatchRendererData BatchRendererData;
 
         public readonly unsafe bool IsCreated => (IntPtr) m_DataBuffer != IntPtr.Zero &&
                                                  (IntPtr) m_Batches != IntPtr.Zero &&
                                                  (IntPtr) m_InstanceCount != IntPtr.Zero;
         
         public readonly unsafe BatchID this[int index] => m_Batches[index];
-
-        public readonly int Length => m_BatchLength;
 
         public readonly unsafe int InstanceCount
         {
@@ -54,8 +53,9 @@
         {
             m_BatchDescription = batchDescription;
             BatchRendererData = rendererData;
+            
             m_BufferLength = m_BatchDescription.TotalBufferSize / 16;
-            m_BatchLength = m_BatchDescription.WindowCount;
+            Length = m_BatchDescription.WindowCount;
 
             m_Allocator = allocator;
 
@@ -83,7 +83,6 @@
         public unsafe void Register([NotNull]BatchRendererGroup batchRendererGroup, GraphicsBufferHandle bufferHandle)
         {
             var metadataValues = m_BatchDescription.AsNativeArray();
-            
             for (var i = 0; i < m_BatchDescription.WindowCount; i++)
             {
                 var offset = (uint) (i * m_BatchDescription.AlignedWindowSize);
@@ -95,13 +94,20 @@
         [BurstDiscard]
         public unsafe void Unregister([NotNull]BatchRendererGroup batchRendererGroup)
         {
-            for (var i = 0; i < m_BatchLength; i++)
+            for (var i = 0; i < Length; i++)
             {
                 batchRendererGroup.RemoveBatch(m_Batches[i]);
             }
 
-            batchRendererGroup.UnregisterMaterial(BatchRendererData.MaterialID);
-            batchRendererGroup.UnregisterMesh(BatchRendererData.MeshID);
+            for (var i = 0; i < FixedBatchLodRendererData.Count; i++)
+            {
+                var lodRendererData = BatchRendererData[i];
+                
+                if(lodRendererData.MaterialID != BatchMaterialID.Null)
+                    batchRendererGroup.UnregisterMaterial(lodRendererData.MaterialID);
+                if(lodRendererData.MeshID != BatchMeshID.Null)
+                    batchRendererGroup.UnregisterMesh(lodRendererData.MeshID);
+            }
         }
 
         public unsafe void SetInstanceCount(int instanceCount)
@@ -160,6 +166,7 @@
                 UnsafeUtility.FreeTracked(m_InstanceCount, m_Allocator);
 
                 m_BatchDescription.Dispose();
+                BatchRendererData.Dispose();
 
                 m_Allocator = Allocator.Invalid;
             }
@@ -199,7 +206,7 @@
                 m_InstanceCount = null;
 
                 m_Allocator = Allocator.Invalid;
-                return JobHandle.CombineDependencies(jobHandle, m_BatchDescription.Dispose(inputDeps));
+                return JobHandle.CombineDependencies(jobHandle, m_BatchDescription.Dispose(inputDeps), BatchRendererData.Dispose(inputDeps));
             }
 
             m_DataBuffer = null;
@@ -242,7 +249,7 @@
             public bool MoveNext()
             {
                 ++m_Index;
-                return m_Index < m_BatchGroup.m_BatchLength;
+                return m_Index < m_BatchGroup.Length;
             }
 
             public void Reset()
