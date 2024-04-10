@@ -331,7 +331,7 @@
                 {
                     var maxInstanceCountPerBatch = batchGroup.GetInstanceCountPerWindow(batchIndex);
                     
-                    var visibleIndices = new NativeList<int>(maxInstanceCountPerBatch * lodDescription.LodCount, Allocator.TempJob);
+                    var visibleIndices = new NativeList<int>(maxInstanceCountPerBatch * 2, Allocator.TempJob);
                     
                     var lodFadePerInstance = new NativeArray<LodFade>(maxInstanceCountPerBatch, Allocator.TempJob);
                     var instanceCountPerLod = new NativeArray<int>(FixedBatchLodRendererData.Count, Allocator.TempJob);
