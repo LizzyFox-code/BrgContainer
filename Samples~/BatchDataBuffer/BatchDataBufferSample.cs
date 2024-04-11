@@ -1,4 +1,6 @@
-﻿namespace Samples.Batch_Data_Buffer
+﻿using Unity.Transforms;
+
+namespace Samples.Batch_Data_Buffer
 {
     using System.Collections.Generic;
     using BrgContainer.Runtime;
@@ -12,6 +14,14 @@
     {
         [SerializeField]
         private ObjectEntry[] m_ObjectEntries;
+
+        [SerializeField]
+        private int m_BatchIndex;
+        
+        [SerializeField]
+        private int m_AddInstanceCount = 10;
+        [SerializeField]
+        private int m_RemoveInstanceCount = 10;
         
         private BatchRendererGroupContainer m_Container;
 
@@ -36,7 +46,8 @@
 
                 // get an instance data buffer that contains all data per instance
                 var instanceDataBuffer = batchHandle.AsInstanceDataBuffer();
-                SetRandomDataForBatchDataBuffer(instanceDataBuffer, instanceDataBuffer.Capacity);
+                instanceDataBuffer.SetInstanceCount(instanceDataBuffer.Capacity); // set current instance count
+                SetRandomDataForBatchDataBuffer(instanceDataBuffer,0, instanceDataBuffer.Capacity);
                 
                 batchHandle.Upload(); // upload to GPU side
             }
@@ -59,18 +70,66 @@
                 var instanceDataBuffer = batchHandle.AsInstanceDataBuffer();
                 var instanceCount = Random.Range(0, instanceDataBuffer.Capacity);
                     
-                SetRandomDataForBatchDataBuffer(instanceDataBuffer, instanceCount);
+                instanceDataBuffer.SetInstanceCount(instanceCount); // set current instance count
+                SetRandomDataForBatchDataBuffer(instanceDataBuffer,0, instanceCount);
                 
                 batchHandle.Upload(); // upload to GPU side
             }
         }
 
-        private void SetRandomDataForBatchDataBuffer(in BatchInstanceDataBuffer instanceDataBuffer, int instanceCount)
+        [ContextMenu("Add instances")]
+        private void AddInstances()
         {
-            var maxInstanceCount = instanceDataBuffer.Capacity;
-            instanceDataBuffer.SetInstanceCount(instanceCount); // set current instance count
+            if(m_BatchIndex >= m_Handles.Count)
+                return;
+
+            var batchHandle = m_Handles[m_BatchIndex];
+            var instanceDataBuffer = batchHandle.AsInstanceDataBuffer();
+            var instanceCount = math.min(instanceDataBuffer.Capacity, instanceDataBuffer.Capacity + m_AddInstanceCount);
+            var from = instanceDataBuffer.InstanceCount;
+                
+            SetRandomDataForBatchDataBuffer(instanceDataBuffer, from, instanceCount);
+        }
+
+        // remove instances
+        [ContextMenu("Remove instances")]
+        private void RemoveInstances()
+        {
+            if(m_BatchIndex >= m_Handles.Count)
+                return;
+
+            var batchHandle = m_Handles[m_BatchIndex];
+            var instanceDataBuffer = batchHandle.AsInstanceDataBuffer();
             
-            for (var i = 0; i < maxInstanceCount; i++)
+            var from = instanceDataBuffer.InstanceCount;
+            instanceDataBuffer.Remove(from, m_RemoveInstanceCount);
+        }
+
+        [ContextMenu("Log instance data")]
+        private void LogInstanceData()
+        {
+            if(m_BatchIndex >= m_Handles.Count)
+                return;
+
+            var batchHandle = m_Handles[m_BatchIndex];
+            var instanceDataBuffer = batchHandle.AsInstanceDataBuffer();
+
+            for (var i = 0; i < instanceDataBuffer.InstanceCount; i++)
+            {
+                var transformMatrix = instanceDataBuffer.GetTRS(i);
+                
+                var translation = new float3(transformMatrix.c3.x, transformMatrix.c3.y, transformMatrix.c3.z);
+                var rotation = new quaternion(math.orthonormalize(new float3x3(transformMatrix)));
+                var scale = new float3(math.length(transformMatrix.c0.xyz), math.length(transformMatrix.c1.xyz), math.length(transformMatrix.c2.xyz));
+                
+                Debug.Log($"[{i}] translation: {translation.ToString()}, rotation: {rotation.ToString()}, scale: {scale.ToString()}");
+            }
+        }
+
+        // set random data
+        private void SetRandomDataForBatchDataBuffer(in BatchInstanceDataBuffer instanceDataBuffer, int from, int count)
+        {
+            for (var i = from; i < from + count; i++)
             {
                 // create random transform matrix for each instance
                 var translation = transform.position + Random.insideUnitSphere * 100.0f;

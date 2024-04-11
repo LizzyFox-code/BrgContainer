@@ -118,9 +118,8 @@
             
             Interlocked.Exchange(ref *m_InstanceCountReference, instanceCount);
         }
-
-        [BurstCompile]
-        public unsafe void LeftShift(int from, int count)
+        
+        public unsafe void Remove(int from, int count)
         {
             if (from >= InstanceCount)
             {
