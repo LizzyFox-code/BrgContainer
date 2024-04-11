@@ -28,6 +28,11 @@
       "displayName": "Hello World",
       "description": "A minimalist Hello World sample created with BRG Container tool.",
       "path": "Samples~/HelloWorld"
+    },
+    {
+      "displayName": "Create BRG",
+      "description": "A simple sample that shows how to create a BRG Container instance.",
+      "path": "Samples~/CreateBRG"
     }
   ]
 }

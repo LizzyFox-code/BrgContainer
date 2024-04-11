@@ -1,5 +1,5 @@
 ## About
-What is **Batch Rendering Group** (BRG)? BatchRendererGroup is an API for high-performance custom rendering in projects that use a Scriptable Render Pipeline (SRP) and the SRP Batcher. 
+What is the **Batch Rendering Group** (BRG)? Batch Renderer Group is an API for high-performance custom rendering in projects that use a Scriptable Render Pipeline (SRP) and the SRP Batcher. 
 BRG is the perfect tool to:
  - Render DOTS Entities. For example, Unity’s Hybrid Renderer uses BRG to do this.
  - Render a large number of environment objects where using individual GameObjects would be too resource-intensive. For example, procedurally-placed plants or rocks.
@@ -11,6 +11,8 @@ The **Brg Container** provides high-level API for instancing data reading and wr
 
 Supports types of culling:
  - Frustum culling
+ - LOD
+ - LOD Cross Fade
 
 ## Dependencies
  - Unity Mathematics: 1.2.6
@@ -24,6 +26,7 @@ From UPM:
 
 ## Samples
  - **Hello World** is a simple sample. It shows how to create the Brg Container and change data for each instance in a Job.
+ - **CreateBRG** is a simple sample that shows how to create a BRG Container instance.
 
 ## Usage
 #### Create the BatchRendererGroupContainer
