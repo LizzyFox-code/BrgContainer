@@ -27,7 +27,8 @@ From UPM:
 ## Samples
  - **Hello World** is a simple sample. It shows how to create the Brg Container and change data for each instance in a Job.
  - **Create BRG** is a simple sample that shows how to create a BRG Container instance.
- - **Create Batch** is a simple sample that shows hot to create a Batch.
+ - **Create Batch** is a simple sample that shows how to create a Batch.
+ - **Batch Data Buffer** is a sample that shows how to set and read instance data.
 
 ## Usage
 #### Create the BatchRendererGroupContainer

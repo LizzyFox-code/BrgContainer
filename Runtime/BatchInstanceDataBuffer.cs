@@ -27,7 +27,7 @@
         [NativeDisableUnsafePtrRestriction]
         private readonly unsafe int* m_InstanceCountReference;
 
-        private readonly int m_MaxInstanceCount;
+        public readonly int Capacity;
         private readonly int m_MaxInstancePerWindow;
         private readonly int m_WindowSizeInFloat4;
 
@@ -49,7 +49,7 @@
             m_MetadataInfo = metadataInfo;
             m_MetadataValues = metadataValues;
             m_InstanceCountReference = instanceCountReference;
-            m_MaxInstanceCount = maxInstanceCount;
+            Capacity = maxInstanceCount;
 
             m_MaxInstancePerWindow = maxInstancePerWindow;
             m_WindowSizeInFloat4 = windowSizeInFloat4;
@@ -65,8 +65,8 @@
         public unsafe void WriteInstanceData<T>(int index, int propertyId, T itemData) where T : unmanaged
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(index < 0 || index >= m_MaxInstanceCount)
-                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {m_MaxInstanceCount - 1} (include).");
+            if(index < 0 || index >= Capacity)
+                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {Capacity - 1} (include).");
 #endif
             
             var windowId = Math.DivRem(index, m_MaxInstancePerWindow, out var i);
@@ -89,8 +89,8 @@
         public unsafe T ReadInstanceData<T>(int index, int propertyId) where T : unmanaged
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(index < 0 || index >= m_MaxInstanceCount)
-                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {m_MaxInstanceCount - 1} (include).");
+            if(index < 0 || index >= Capacity)
+                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {Capacity - 1} (include).");
 #endif
             
             var windowId = Math.DivRem(index, m_MaxInstancePerWindow, out var i);
@@ -112,8 +112,8 @@
         public unsafe void SetInstanceCount(int instanceCount)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(instanceCount < 0 || instanceCount > m_MaxInstanceCount)
-                throw new ArgumentOutOfRangeException($"Instance count {instanceCount} out of range from 0 to {m_MaxInstanceCount} (include).");
+            if(instanceCount < 0 || instanceCount > Capacity)
+                throw new ArgumentOutOfRangeException($"Instance count {instanceCount} out of range from 0 to {Capacity} (include).");
 #endif
             
             Interlocked.Exchange(ref *m_InstanceCountReference, instanceCount);

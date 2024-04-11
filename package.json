@@ -38,6 +38,11 @@
       "displayName": "Create Batch",
       "description": "A simple sample that shows how to create a batch for drawing some objects.",
       "path": "Samples~/CreateBatch"
+    },
+    {
+      "displayName": "Batch Data Buffer",
+      "description": "A sample that shows how to set and read instance data.",
+      "path": "Samples~/BatchDataBuffer"
     }
   ]
 }
