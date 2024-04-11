@@ -200,6 +200,7 @@ m_Container.AddBatch(ref batchDescription, ref lodGroup, float3.zero, rendererDe
 ```
 
 **FadeMode**
+
 FadeMode enum is (only supported):
 - None - no fading
 - CrossFade - dithering fading
