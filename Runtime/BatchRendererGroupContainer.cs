@@ -143,8 +143,8 @@
 #endif
             
             var graphicsBuffer = CreateGraphicsBuffer(BatchDescription.IsUBO, batchDescription.TotalBufferSize);
-            var rendererData = CreateRendererData(ref lodGroup, extentsOffset, rendererDescription);
-            var batchGroup = CreateBatchGroup(ref batchDescription, ref rendererData, graphicsBuffer.bufferHandle);
+            var rendererData = CreateRendererData(ref lodGroup, extentsOffset, rendererDescription, batchDescription.m_Allocator);
+            var batchGroup = CreateBatchGroup(ref batchDescription, ref rendererData, graphicsBuffer.bufferHandle, batchDescription.m_Allocator);
             
             var batchId = batchGroup[0];
             m_GraphicsBuffers.Add(batchId, graphicsBuffer);
@@ -246,15 +246,15 @@
             return new GraphicsBuffer(target, count, stride);
         }
 
-        private BatchGroup CreateBatchGroup(ref BatchDescription batchDescription, ref BatchRendererData rendererData, GraphicsBufferHandle graphicsBufferHandle)
+        private BatchGroup CreateBatchGroup(ref BatchDescription batchDescription, ref BatchRendererData rendererData, GraphicsBufferHandle graphicsBufferHandle, Allocator allocator)
         {
-            var batchGroup = new BatchGroup(ref batchDescription, rendererData, Allocator.Persistent);
+            var batchGroup = new BatchGroup(ref batchDescription, rendererData, allocator);
             batchGroup.Register(m_BatchRendererGroup, graphicsBufferHandle);
 
             return batchGroup;
         }
 
-        private unsafe BatchRendererData CreateRendererData(ref LODGroup lodGroup, float3 extentsOffset, in RendererDescription description)
+        private unsafe BatchRendererData CreateRendererData(ref LODGroup lodGroup, float3 extentsOffset, in RendererDescription description, Allocator allocator)
         {
             var lodGroupLODs = lodGroup.LODs;
             var batchLodDescription = new BatchLodDescription(lodGroupLODs.Length, lodGroup.FadeMode);
@@ -265,7 +265,7 @@
                 batchLodDescription.FadeWidth[i] = lodGroupMeshData.FadeTransitionWidth;
             }
 
-            var extents = new UnsafeList<float3>(lodGroup.LODs.Length, Allocator.Persistent);
+            var extents = new UnsafeList<float3>(lodGroup.LODs.Length, allocator);
             for (var i = 0; i < lodGroup.LODs.Length; i++)
             {
                 var lod = lodGroup.LODs[i];

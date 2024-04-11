@@ -29,7 +29,8 @@ From UPM:
  - **Create BRG** is a simple sample that shows how to create a BRG Container instance.
  - **Create Batch** is a simple sample that shows how to create a Batch.
  - **Batch Data Buffer** is a sample that shows how to set and read instance data.
- - **Material Properties** is a sample that show how to use material properties for batch.
+ - **Material Properties** is a sample that shows how to use material properties for batch.
+ - **LOD** is a sample that shows how to add LOD support.
 
 ## Usage
 #### Create the BatchRendererGroupContainer
@@ -40,10 +41,10 @@ m_BrgContainer = new BatchRendererGroupContainer(bounds);
 ```
 
 #### Create the material properties description
-For each batch we need to describe material properties (type and property id). A property id of material property can be get by Shader.PropertyToID method.
+For each batch we need to describe material properties (type and property id). A property id of material property can be got by Shader.PropertyToID method.
 Please note, the material properties description needs only for batch description creating, so we need to dispose it.
 
-P.S.: the batch contains 'objectToWorld' and 'worldToObject' matrices by default.
+Note also that a batch contains 'objectToWorld' and 'worldToObject' matrices by default.
 ```c#
 // for example let's create a description of the _BaseColor material property.
 using var materialProperties = new NativeArray<MaterialProperty>(1, Allocator.Temp)
@@ -53,7 +54,7 @@ using var materialProperties = new NativeArray<MaterialProperty>(1, Allocator.Te
 ```
 
 #### Create the batch description
-After that, we need to create the batch description that needs max instance count and the material properties description.
+After that, we need to create the batch description that needs max instance count and the material's properties description.
 ```c#
 // for example let's create description of _BaseColor material property.
 var batchDescription = new BatchDescription(m_CubeCount, materialProperties, Allocator.Persistent);
@@ -108,7 +109,7 @@ The batch instance data buffer (BatchInstanceDataBuffer) provides some API:
  - write instance data by index and material property id
  - set current instance count (by default it is zero)
 
-P.S.: The batch instance data buffer supports of the Burst package.
+Note that the batch instance data buffer supports the Burst package.
 
 **Read instance data**:
 ```c#
@@ -149,7 +150,7 @@ dataBuffer.SetVector(i, m_SomeVectorPropertyId, new float4(1.0f, 0.5f, 1.3f));
 For this tool we need to use the **PackedMatrix** instead the **Matrix4x4** or the **float4x4**.
 
 <p align="center">
-<img src="docs~/images/brg_matrices.jpg" title="BRG matrix format">
+<img src="docs~/images/brg_matrices.jpg" title="BRG matrix format" alt="BRG matrix format">
 </p>
 
 ```c#
@@ -169,3 +170,46 @@ var forward = packedMatrix.GetForward(); // float3
 PackedMatrix.TRS(position, rotation, scale); // float3, quaternion and float3
 // and etc.
 ```
+
+#### LOD Support
+To add support of LODs we need to create a **BrgContainer.Runtime.Lod.LODGroup** instance.
+```c#
+var lodGroup = new LODGroup();
+lodGroup.LODs = new LODMeshData[8];
+lodGroup.FadeMode = entry.FadeMode;
+
+// only eight levels supports
+for (var lod = 0; lod < 8; lod++)
+{
+    lodGroup.LODs[lod] = new LODMeshData
+    {
+        Mesh = m_Meshes[lod],
+        Material = m_Materials[lod],
+        SubMeshIndex = 0,
+        ScreenRelativeTransitionHeight = m_TransitionHeights[lod],
+        FadeTransitionWidth = m_TransitionWidths[lod]
+    };~~~~
+}
+```
+
+Note that the BRG Container supports only FadeMode.None and FadeMode.CrossFade. FadeMode.SpeedTree is not supported now.
+
+Then create a BRG batch with the overload method:
+```c#
+m_Container.AddBatch(ref batchDescription, ref lodGroup, float3.zero, rendererDescription);
+```
+
+**FadeMode**
+FadeMode enum is (only supported):
+- None - no fading
+- CrossFade - dithering fading
+
+**ScreenRelativeTransitionHeight**
+
+What is the **ScreenRelativeTransitionHeight**? ScreenRelativeTransitionHeight is a relative metric that shows how much a LOD object must be visible 
+in percentage terms for it to be selected. This metric is in range from 0 to 1.0, where 0 - not visible any time (less than pixel size), 1 - visible only if an object occupies the entire screen.
+
+**FadeTransitionWidth**
+
+**FadeTransitionWidth** is a relative metric that shows when a LOD starts fading. For example, 0 value means that a LOD starts fading from minimum distance (from start).
+1 value means that a LOD never starts fading, therefore the LOD switching is abrupt.

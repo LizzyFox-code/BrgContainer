@@ -1,6 +1,6 @@
 {
   "name": "com.lizzyfox-code.brg-container",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "displayName": "BRG Container",
   "description": "A Batch Rendering Group Tool for Unity.",
   "_upm": {
@@ -48,6 +48,11 @@
       "displayName": "Material Properties",
       "description": "A sample that shows how to use material properties.",
       "path": "Samples~/MaterialProperties"
+    },
+    {
+      "displayName": "LOD",
+      "description": "A sample that shows how to add LOD support.",
+      "path": "Samples~/LOD"
     }
   ]
 }

@@ -35,7 +35,7 @@
         [NativeDisableUnsafePtrRestriction]
         internal unsafe UnsafeHashMap<int, MetadataInfo>* m_MetadataInfoMap;
         
-        private Allocator m_Allocator;
+        internal Allocator m_Allocator;
 
         public readonly unsafe MetadataValue this[int index]
         {
