@@ -43,6 +43,11 @@
       "displayName": "Batch Data Buffer",
       "description": "A sample that shows how to set and read instance data.",
       "path": "Samples~/BatchDataBuffer"
+    },
+    {
+      "displayName": "Material Properties",
+      "description": "A sample that shows how to use material properties.",
+      "path": "Samples~/MaterialProperties"
     }
   ]
 }

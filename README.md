@@ -29,6 +29,7 @@ From UPM:
  - **Create BRG** is a simple sample that shows how to create a BRG Container instance.
  - **Create Batch** is a simple sample that shows how to create a Batch.
  - **Batch Data Buffer** is a sample that shows how to set and read instance data.
+ - **Material Properties** is a sample that show how to use material properties for batch.
 
 ## Usage
 #### Create the BatchRendererGroupContainer
