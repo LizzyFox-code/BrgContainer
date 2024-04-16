@@ -126,29 +126,8 @@
                 InstanceCount = math.max(0, instanceCount - count);
                 return;
             }
-
-            var startIndex = index;
-            var endIndex = math.min(index + count, m_MaxInstancePerWindow);
-            var copyCount = instanceCount - count - startIndex;
             
-            for (var metadataIndex = 0; metadataIndex < (*m_MetadataValues).Length; metadataIndex++)
-            {
-                var metadataValue = (*m_MetadataValues)[metadataIndex];
-                var metadataInfo = (*m_MetadataInfo)[metadataValue.NameID];
-                var sizeInFloat4 = metadataInfo.Size / 16;
-                var offsetInFloat4 = metadataInfo.Offset / 16;
-                
-                var sourceIndex = 0 + endIndex * sizeInFloat4 + offsetInFloat4;
-                var destinationIndex = 0 + startIndex * sizeInFloat4 + offsetInFloat4;
-
-                var sourcePtr = (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + sourceIndex * UnsafeUtility.SizeOf<float4>());
-                var destinationPtr = (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + destinationIndex * UnsafeUtility.SizeOf<float4>());
-
-                var size = copyCount * sizeInFloat4 * UnsafeUtility.SizeOf<float4>();
-                UnsafeUtility.MemMove(destinationPtr, sourcePtr, size);
-            }
-
-            /*var windowCount = (instanceCount + m_MaxInstancePerWindow - 1) / m_MaxInstancePerWindow;
+            var windowCount = (instanceCount + m_MaxInstancePerWindow - 1) / m_MaxInstancePerWindow;
             
             var startIndex = math.max(index, 0);
             var startWindowId = Math.DivRem(startIndex, m_MaxInstancePerWindow, out var startI);
@@ -165,16 +144,16 @@
                 var endInstancePerWindow = endWindowId == windowCount - 1 ? m_MaxInstancePerWindow - (windowCount * m_MaxInstancePerWindow - instanceCount) : m_MaxInstancePerWindow;
 
                 var copyCount = math.min(startInstancePerWindow - startI, endInstancePerWindow - endI);
-
-                var metadataOffset = 0;
+                
                 for (var metadataIndex = 0; metadataIndex < (*m_MetadataValues).Length; metadataIndex++)
                 {
                     var metadataValue = (*m_MetadataValues)[metadataIndex];
                     var metadataInfo = (*m_MetadataInfo)[metadataValue.NameID];
                     var sizeInFloat4 = metadataInfo.Size / 16;
+                    var offsetInFloat4 = metadataInfo.Offset / 16;
                     
-                    var destinationIndex = startWindowOffset + startI * sizeInFloat4 + m_MaxInstancePerWindow * metadataOffset;
-                    var sourceIndex = endWindowOffset + endI * sizeInFloat4 + m_MaxInstancePerWindow * metadataOffset;
+                    var destinationIndex = startWindowOffset + startI * sizeInFloat4 + offsetInFloat4;
+                    var sourceIndex = endWindowOffset + endI * sizeInFloat4 + offsetInFloat4;
                     
                     var sourcePtr = (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + sourceIndex * UnsafeUtility.SizeOf<float4>());
                     var destinationPtr = (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + destinationIndex * UnsafeUtility.SizeOf<float4>());
@@ -182,8 +161,6 @@
                     var length = copyCount * sizeInFloat4 * UnsafeUtility.SizeOf<float4>();
                     
                     UnsafeUtility.MemMove(destinationPtr, sourcePtr, length);
-
-                    metadataOffset += sizeInFloat4;
                 }
                 
                 startIndex += copyCount;
@@ -191,7 +168,7 @@
 
                 endIndex += copyCount;
                 endWindowId = Math.DivRem(endIndex, m_MaxInstancePerWindow, out endI);
-            }*/
+            }
             
             InstanceCount = math.max(0, instanceCount - count);
         }
