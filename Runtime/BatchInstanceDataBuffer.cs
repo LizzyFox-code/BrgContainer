@@ -5,7 +5,6 @@
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using System.Threading;
-    using Unity.Burst;
     using Unity.Collections;
     using Unity.Collections.LowLevel.Unsafe;
     using Unity.Mathematics;
@@ -65,8 +64,8 @@
         public unsafe void WriteInstanceData<T>(int index, int propertyId, T itemData) where T : unmanaged
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(index < 0 || index >= Capacity)
-                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {Capacity - 1} (include).");
+            if(index < 0 || index >= InstanceCount)
+                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {InstanceCount} (exclude).");
 #endif
             
             var windowId = Math.DivRem(index, m_MaxInstancePerWindow, out var i);
@@ -75,8 +74,8 @@
             var sizeInFloat4 = metadataInfo.Size / 16;
             var offsetInFloat4 = metadataInfo.Offset / 16;
 
-            var bufferIndex = windowOffsetInFloat4 + offsetInFloat4 + i * sizeInFloat4;
-            UnsafeUtility.CopyStructureToPtr(ref itemData, (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + bufferIndex * UnsafeUtility.SizeOf<float4>()));
+            var elementIndex = windowOffsetInFloat4 + offsetInFloat4 + i * sizeInFloat4;
+            UnsafeUtility.CopyStructureToPtr(ref itemData, (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + elementIndex * UnsafeUtility.SizeOf<float4>()));
         }
 
         /// <summary>
@@ -89,8 +88,8 @@
         public unsafe T ReadInstanceData<T>(int index, int propertyId) where T : unmanaged
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(index < 0 || index >= Capacity)
-                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {Capacity - 1} (include).");
+            if(index < 0 || index >= InstanceCount)
+                throw new IndexOutOfRangeException($"Index {index} must be from 0 to {InstanceCount} (exclude).");
 #endif
             
             var windowId = Math.DivRem(index, m_MaxInstancePerWindow, out var i);
@@ -98,9 +97,9 @@
             var metadataInfo = (*m_MetadataInfo)[propertyId];
             var sizeInFloat4 = metadataInfo.Size / 16;
             var offsetInFloat4 = metadataInfo.Offset / 16;
-            var bufferIndex = windowOffsetInFloat4 + offsetInFloat4 + i * sizeInFloat4;
+            var elementIndex = windowOffsetInFloat4 + offsetInFloat4 + i * sizeInFloat4;
             
-            UnsafeUtility.CopyPtrToStructure((void*) ((IntPtr) m_Buffer.GetUnsafePtr() + bufferIndex * UnsafeUtility.SizeOf<float4>()), out T item);
+            UnsafeUtility.CopyPtrToStructure((void*) ((IntPtr) m_Buffer.GetUnsafePtr() + elementIndex * UnsafeUtility.SizeOf<float4>()), out T item);
             return item;
         }
 
@@ -119,20 +118,42 @@
             Interlocked.Exchange(ref *m_InstanceCountReference, instanceCount);
         }
         
-        public unsafe void Remove(int from, int count)
+        public unsafe void Remove(int index, int count)
         {
-            if (from >= InstanceCount)
+            var instanceCount = InstanceCount;
+            if (index + count >= instanceCount)
             {
-                InstanceCount = math.max(0, InstanceCount - count);
+                InstanceCount = math.max(0, instanceCount - count);
                 return;
             }
 
-            var windowCount = (InstanceCount + m_MaxInstancePerWindow - 1) / m_MaxInstancePerWindow;
+            var startIndex = index;
+            var endIndex = math.min(index + count, m_MaxInstancePerWindow);
+            var copyCount = instanceCount - count - startIndex;
             
-            var startIndex = math.max(from - count, 0);
+            for (var metadataIndex = 0; metadataIndex < (*m_MetadataValues).Length; metadataIndex++)
+            {
+                var metadataValue = (*m_MetadataValues)[metadataIndex];
+                var metadataInfo = (*m_MetadataInfo)[metadataValue.NameID];
+                var sizeInFloat4 = metadataInfo.Size / 16;
+                var offsetInFloat4 = metadataInfo.Offset / 16;
+                
+                var sourceIndex = 0 + endIndex * sizeInFloat4 + offsetInFloat4;
+                var destinationIndex = 0 + startIndex * sizeInFloat4 + offsetInFloat4;
+
+                var sourcePtr = (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + sourceIndex * UnsafeUtility.SizeOf<float4>());
+                var destinationPtr = (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + destinationIndex * UnsafeUtility.SizeOf<float4>());
+
+                var size = copyCount * sizeInFloat4 * UnsafeUtility.SizeOf<float4>();
+                UnsafeUtility.MemMove(destinationPtr, sourcePtr, size);
+            }
+
+            /*var windowCount = (instanceCount + m_MaxInstancePerWindow - 1) / m_MaxInstancePerWindow;
+            
+            var startIndex = math.max(index, 0);
             var startWindowId = Math.DivRem(startIndex, m_MaxInstancePerWindow, out var startI);
 
-            var endIndex = from;
+            var endIndex = index + count;
             var endWindowId = Math.DivRem(endIndex, m_MaxInstancePerWindow, out var endI);
 
             for (var i = startWindowId; i < windowCount; i++)
@@ -140,8 +161,8 @@
                 var startWindowOffset = startWindowId * m_WindowSizeInFloat4;
                 var endWindowOffset = endWindowId * m_WindowSizeInFloat4;
 
-                var startInstancePerWindow = startWindowId == windowCount - 1 ? m_MaxInstancePerWindow - (windowCount * m_MaxInstancePerWindow - InstanceCount) : m_MaxInstancePerWindow;
-                var endInstancePerWindow = endWindowId == windowCount - 1 ? m_MaxInstancePerWindow - (windowCount * m_MaxInstancePerWindow - InstanceCount) : m_MaxInstancePerWindow;
+                var startInstancePerWindow = startWindowId == windowCount - 1 ? m_MaxInstancePerWindow - (windowCount * m_MaxInstancePerWindow - instanceCount) : m_MaxInstancePerWindow;
+                var endInstancePerWindow = endWindowId == windowCount - 1 ? m_MaxInstancePerWindow - (windowCount * m_MaxInstancePerWindow - instanceCount) : m_MaxInstancePerWindow;
 
                 var copyCount = math.min(startInstancePerWindow - startI, endInstancePerWindow - endI);
 
@@ -170,9 +191,9 @@
 
                 endIndex += copyCount;
                 endWindowId = Math.DivRem(endIndex, m_MaxInstancePerWindow, out endI);
-            }
+            }*/
             
-            InstanceCount = math.max(0, InstanceCount - count);
+            InstanceCount = math.max(0, instanceCount - count);
         }
 
         public bool Equals(BatchInstanceDataBuffer other)
