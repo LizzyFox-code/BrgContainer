@@ -60,6 +60,7 @@
             m_NoiseOffsets = new NativeArray<float>(m_CubeCount, Allocator.Persistent);
 
             var dataBuffer = m_BatchHandle.AsInstanceDataBuffer();
+            dataBuffer.SetInstanceCount(m_CubeCount); // this number can be not a constant, but less than BatchDescription.MaxInstanceCount
             
             for (var i = 0; i < m_CubeCount; i++) // or use a IJobFor for initialization
             {
@@ -71,8 +72,6 @@
                 dataBuffer.SetTRS(i, position, rotation, Vector3.one);
                 dataBuffer.SetColor(i, m_BaseColorPropertyId, new Color(0.2f, 0.2f, 0.8f));
             }
-            
-            dataBuffer.SetInstanceCount(m_CubeCount); // this number can be not a constant, but less than BatchDescription.MaxInstanceCount
         }
 
         private void Update()
