@@ -28,6 +28,7 @@ Supports features:
 From UPM:
  - install the package from git URL (https://github.com/LizzyFox-code/BrgContainer)
  - install the package from disk: download repo as zip archive, unpack and select the package.json file
+ - install the package from OpenUPM: https://openupm.com/packages/com.lizzyfox-code.brg-container/
 
 ## Samples
  - **Hello World** is a simple sample. It shows how to create the Brg Container and change data for each instance in a Job.
