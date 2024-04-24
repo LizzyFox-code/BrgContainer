@@ -9,7 +9,7 @@ More information about BRG - https://docs.unity3d.com/Manual/batch-renderer-grou
 
 The **Brg Container** provides high-level API for instancing data reading and writing. It supports UBO and SSBO buffer types, so it can be used for GLES.
 
-Supports types of culling:
+Supports features:
  - Frustum culling
  - LOD
  - LOD Cross Fade
