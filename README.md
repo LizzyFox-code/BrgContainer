@@ -19,6 +19,11 @@ Supports types of culling:
  - Unity Collections: 2.2.1
  - Unity Burst: 1.8.8
 
+## Unity versions supported
+- Tested on the Unity 2023.1.x version.
+- The Unity 2023.2.x version will be tested soon.
+- The Unity 6 version will be tested only when it gets stable.
+
 ## How to install
 From UPM:
  - install the package from git URL (https://github.com/LizzyFox-code/BrgContainer)
