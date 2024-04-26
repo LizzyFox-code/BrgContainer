@@ -9,7 +9,7 @@ More information about BRG - https://docs.unity3d.com/Manual/batch-renderer-grou
 
 The **Brg Container** provides high-level API for instancing data reading and writing. It supports UBO and SSBO buffer types, so it can be used for GLES.
 
-Supports types of culling:
+Supports features:
  - Frustum culling
  - LOD
  - LOD Cross Fade
@@ -19,10 +19,16 @@ Supports types of culling:
  - Unity Collections: 2.2.1
  - Unity Burst: 1.8.8
 
+## Unity versions supported
+- Tested on the Unity 2023.1.x version.
+- The Unity 2023.2.x version will be tested soon.
+- The Unity 6 version will be tested only when it gets stable.
+
 ## How to install
 From UPM:
  - install the package from git URL (https://github.com/LizzyFox-code/BrgContainer)
  - install the package from disk: download repo as zip archive, unpack and select the package.json file
+ - install the package from OpenUPM: https://openupm.com/packages/com.lizzyfox-code.brg-container/
 
 ## Samples
  - **Hello World** is a simple sample. It shows how to create the Brg Container and change data for each instance in a Job.
