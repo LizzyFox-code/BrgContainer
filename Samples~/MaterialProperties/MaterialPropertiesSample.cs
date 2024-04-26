@@ -8,7 +8,7 @@
     using Random = UnityEngine.Random;
     
     [DisallowMultipleComponent]
-    public sealed class BatchDataBufferSample : MonoBehaviour
+    public sealed class MaterialPropertiesSample : MonoBehaviour
     {
         private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
         

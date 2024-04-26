@@ -1,14 +1,14 @@
-﻿using System.Collections.Generic;
-using BrgContainer.Runtime;
-using BrgContainer.Runtime.Lod;
-using Unity.Collections;
-using Unity.Mathematics;
-using UnityEngine;
-using LODGroup = BrgContainer.Runtime.Lod.LODGroup;
-using Random = UnityEngine.Random;
-
-namespace Samples_.LOD
+﻿namespace Samples_.LOD
 {
+    using System.Collections.Generic;
+    using BrgContainer.Runtime;
+    using BrgContainer.Runtime.Lod;
+    using Unity.Collections;
+    using Unity.Mathematics;
+    using UnityEngine;
+    using LODGroup = BrgContainer.Runtime.Lod.LODGroup;
+    using Random = UnityEngine.Random;
+    
     [DisallowMultipleComponent]
     public sealed class LodSample : MonoBehaviour
     {

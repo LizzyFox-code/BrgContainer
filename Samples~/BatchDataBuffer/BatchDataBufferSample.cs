@@ -1,6 +1,4 @@
-﻿using Unity.Transforms;
-
-namespace Samples.Batch_Data_Buffer
+﻿namespace Samples.Batch_Data_Buffer
 {
     using System.Collections.Generic;
     using BrgContainer.Runtime;
