@@ -5,7 +5,7 @@
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using System.Threading;
-    using Unity.Collections;
+    using Unity.Burst;
     using Unity.Collections.LowLevel.Unsafe;
     using Unity.Mathematics;
     using UnityEngine.Rendering;
@@ -15,16 +15,16 @@
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     [DebuggerDisplay("InstanceCount = {InstanceCount}")]
-    public readonly struct BatchInstanceDataBuffer : IEquatable<BatchInstanceDataBuffer>
+    public readonly unsafe struct BatchInstanceDataBuffer
     {
-        [NativeDisableParallelForRestriction]
-        private readonly NativeArray<float4> m_Buffer;
-        [NativeDisableUnsafePtrRestriction]
-        private readonly unsafe UnsafeHashMap<int, MetadataInfo>* m_MetadataInfo;
-        [NativeDisableUnsafePtrRestriction]
-        private readonly unsafe UnsafeList<MetadataValue>* m_MetadataValues;
-        [NativeDisableUnsafePtrRestriction]
-        private readonly unsafe int* m_InstanceCountReference;
+        [NoAlias, NativeDisableUnsafePtrRestriction]
+        private readonly float4* m_Buffer;
+        [NoAlias, NativeDisableUnsafePtrRestriction]
+        private readonly UnsafeHashMap<int, MetadataInfo>* m_MetadataInfo;
+        [NoAlias, NativeDisableUnsafePtrRestriction]
+        private readonly UnsafeList<MetadataValue>* m_MetadataValues;
+        [NoAlias, NativeDisableUnsafePtrRestriction]
+        private readonly int* m_InstanceCountReference;
 
         public readonly int Capacity;
         private readonly int m_MaxInstancePerWindow;
@@ -33,7 +33,7 @@
         /// <summary>
         /// Current instance count.
         /// </summary>
-        public unsafe int InstanceCount
+        public int InstanceCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => *m_InstanceCountReference;
@@ -41,7 +41,7 @@
             set => SetInstanceCount(value);
         }
 
-        internal unsafe BatchInstanceDataBuffer(NativeArray<float4> buffer, UnsafeHashMap<int, MetadataInfo>* metadataInfo, UnsafeList<MetadataValue>* metadataValues,
+        internal BatchInstanceDataBuffer(float4* buffer, UnsafeHashMap<int, MetadataInfo>* metadataInfo, UnsafeList<MetadataValue>* metadataValues,
             int* instanceCountReference, int maxInstanceCount, int maxInstancePerWindow, int windowSizeInFloat4)
         {
             m_Buffer = buffer;
@@ -61,7 +61,7 @@
         /// <param name="propertyId">The material property id.</param>
         /// <param name="itemData">The instance data.</param>
         /// <typeparam name="T">The blittable type.</typeparam>
-        public unsafe void WriteInstanceData<T>(int index, int propertyId, T itemData) where T : unmanaged
+        public void WriteInstanceData<T>(int index, int propertyId, T itemData) where T : unmanaged
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if(index < 0 || index >= InstanceCount)
@@ -75,7 +75,7 @@
             var offsetInFloat4 = metadataInfo.Offset / 16;
 
             var elementIndex = windowOffsetInFloat4 + offsetInFloat4 + i * sizeInFloat4;
-            UnsafeUtility.CopyStructureToPtr(ref itemData, (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + elementIndex * UnsafeUtility.SizeOf<float4>()));
+            UnsafeUtility.CopyStructureToPtr(ref itemData, (void*) ((IntPtr) m_Buffer + elementIndex * UnsafeUtility.SizeOf<float4>()));
         }
 
         /// <summary>
@@ -85,7 +85,7 @@
         /// <param name="propertyId">The material property id.</param>
         /// <typeparam name="T">The blittable type.</typeparam>
         /// <returns>Returns instance data by the property id.</returns>
-        public unsafe T ReadInstanceData<T>(int index, int propertyId) where T : unmanaged
+        public T ReadInstanceData<T>(int index, int propertyId) where T : unmanaged
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if(index < 0 || index >= InstanceCount)
@@ -99,7 +99,7 @@
             var offsetInFloat4 = metadataInfo.Offset / 16;
             var elementIndex = windowOffsetInFloat4 + offsetInFloat4 + i * sizeInFloat4;
             
-            UnsafeUtility.CopyPtrToStructure((void*) ((IntPtr) m_Buffer.GetUnsafePtr() + elementIndex * UnsafeUtility.SizeOf<float4>()), out T item);
+            UnsafeUtility.CopyPtrToStructure((void*) ((IntPtr) m_Buffer + elementIndex * UnsafeUtility.SizeOf<float4>()), out T item);
             return item;
         }
 
@@ -108,7 +108,7 @@
         /// </summary>
         /// <param name="instanceCount">Instance count.</param>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public unsafe void SetInstanceCount(int instanceCount)
+        public void SetInstanceCount(int instanceCount)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if(instanceCount < 0 || instanceCount > Capacity)
@@ -118,7 +118,7 @@
             Interlocked.Exchange(ref *m_InstanceCountReference, instanceCount);
         }
         
-        public unsafe void Remove(int index, int count)
+        public void Remove(int index, int count)
         {
             var instanceCount = InstanceCount;
             if (index + count >= instanceCount)
@@ -155,8 +155,8 @@
                     var destinationIndex = startWindowOffset + startI * sizeInFloat4 + offsetInFloat4;
                     var sourceIndex = endWindowOffset + endI * sizeInFloat4 + offsetInFloat4;
                     
-                    var sourcePtr = (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + sourceIndex * UnsafeUtility.SizeOf<float4>());
-                    var destinationPtr = (void*) ((IntPtr) m_Buffer.GetUnsafePtr() + destinationIndex * UnsafeUtility.SizeOf<float4>());
+                    var sourcePtr = (void*) ((IntPtr) m_Buffer + sourceIndex * UnsafeUtility.SizeOf<float4>());
+                    var destinationPtr = (void*) ((IntPtr) m_Buffer + destinationIndex * UnsafeUtility.SizeOf<float4>());
 
                     var length = copyCount * sizeInFloat4 * UnsafeUtility.SizeOf<float4>();
                     
@@ -171,21 +171,6 @@
             }
             
             InstanceCount = math.max(0, instanceCount - count);
-        }
-
-        public bool Equals(BatchInstanceDataBuffer other)
-        {
-            return m_Buffer.Equals(other.m_Buffer);
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is BatchInstanceDataBuffer other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            return m_Buffer.GetHashCode();
         }
     }
 }

@@ -60,7 +60,7 @@
                 throw new InvalidOperationException("This batch has been destroyed.");
 #endif
             
-            return new BatchInstanceDataBuffer(m_Buffer, m_Description.m_MetadataInfoMap, m_Description.m_MetadataValues,
+            return new BatchInstanceDataBuffer((float4*)m_Buffer.GetUnsafePtr(), m_Description.m_MetadataInfoMap, m_Description.m_MetadataValues,
                 m_InstanceCount, m_Description.MaxInstanceCount, m_Description.MaxInstancePerWindow, m_Description.AlignedWindowSize / 16);
         }
 

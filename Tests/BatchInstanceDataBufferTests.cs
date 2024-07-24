@@ -41,7 +41,7 @@
                 UnsafeUtility.AlignOf<int>(), Allocator.Persistent);
             *instanceCountReference = 0;
    
-            buffer = new BatchInstanceDataBuffer(array, metadataInfo, metadataValues, instanceCountReference, 100, 10, 400);
+            buffer = new BatchInstanceDataBuffer((float4*)array.GetUnsafePtr(), metadataInfo, metadataValues, instanceCountReference, 100, 10, 400);
         }
 
         [TearDown]
@@ -83,14 +83,15 @@
         [Test]
         public void TestEqualsMethod()
         {
-            var otherBuffer = new BatchInstanceDataBuffer(array, metadataInfo, metadataValues, instanceCountReference, 100, 10, 400);
+            var otherBuffer = new BatchInstanceDataBuffer((float4*)array.GetUnsafePtr(), metadataInfo, metadataValues, instanceCountReference, 100, 10, 400);
             Assert.True(buffer.Equals(otherBuffer));
         }
         
         [Test]
         public void TestNotEqualsMethod()
         {
-            var otherBuffer = new BatchInstanceDataBuffer(new NativeArray<float4>(50, Allocator.Persistent), metadataInfo, metadataValues, instanceCountReference, 50, 10, 200);
+            var array = new NativeArray<float4>(50, Allocator.Persistent);
+            var otherBuffer = new BatchInstanceDataBuffer((float4*)array.GetUnsafePtr(), metadataInfo, metadataValues, instanceCountReference, 50, 10, 200);
             Assert.False(buffer.Equals(otherBuffer));
         }
         
