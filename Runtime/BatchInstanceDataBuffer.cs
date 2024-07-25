@@ -38,7 +38,11 @@
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => *m_InstanceCountReference;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => SetInstanceCount(value);
+            set
+            {
+                var diff = value - *m_InstanceCountReference;
+                Interlocked.Add(ref *m_InstanceCountReference, diff);
+            }
         }
 
         internal BatchInstanceDataBuffer(float4* buffer, UnsafeHashMap<int, MetadataInfo>* metadataInfo, UnsafeList<MetadataValue>* metadataValues,

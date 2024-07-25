@@ -28,9 +28,19 @@
         private readonly FunctionPointer<UploadDelegate> m_UploadCallback;
         private readonly FunctionPointer<DestroyBatchDelegate> m_DestroyCallback;
         private readonly FunctionPointer<IsBatchAliveDelegate> m_IsAliveCallback;
+        
+        public bool IsCreated
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => m_UploadCallback.IsCreated && m_DestroyCallback.IsCreated && m_IsAliveCallback.IsCreated;
+        }
 
-        public bool IsCreated => m_UploadCallback.IsCreated && m_DestroyCallback.IsCreated && m_IsAliveCallback.IsCreated;
-        public bool IsAlive => IsCreated && CheckIfIsAlive(m_ContainerId, m_BatchId);
+        public bool IsAlive
+        {
+            [BurstDiscard]
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => IsCreated && CheckIfIsAlive(m_ContainerId, m_BatchId);
+        }
         public unsafe int InstanceCount => (IntPtr)m_InstanceCount == IntPtr.Zero ? 0 : *m_InstanceCount;
 
         [ExcludeFromBurstCompatTesting("BatchHandle creating is unburstable")]
@@ -55,11 +65,6 @@
         /// <returns>Returns <see cref="BatchInstanceDataBuffer"/> instance.</returns>
         public unsafe BatchInstanceDataBuffer AsInstanceDataBuffer()
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(!IsAlive)
-                throw new InvalidOperationException("This batch has been destroyed.");
-#endif
-            
             return new BatchInstanceDataBuffer((float4*)m_Buffer.GetUnsafePtr(), m_Description.m_MetadataInfoMap, m_Description.m_MetadataValues,
                 m_InstanceCount, m_Description.MaxInstanceCount, m_Description.MaxInstancePerWindow, m_Description.AlignedWindowSize / 16);
         }
@@ -68,6 +73,7 @@
         /// Upload current data to the GPU side.
         /// </summary>
         /// <param name="instanceCount"></param>
+        [BurstDiscard]
         public unsafe void Upload(int instanceCount)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -112,6 +118,7 @@
         /// <summary>
         /// Upload current data to the GPU side.
         /// </summary>
+        [BurstDiscard]
         public unsafe void Upload()
         {
             Upload(*m_InstanceCount);
@@ -120,7 +127,7 @@
         /// <summary>
         /// Destroy the batch.
         /// </summary>
-        [ExcludeFromBurstCompatTesting("BatchHandle destroying is unburstable")]
+        [BurstDiscard]
         public void Destroy()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
