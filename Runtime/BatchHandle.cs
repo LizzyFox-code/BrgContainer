@@ -46,8 +46,8 @@
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => IsCreated && CheckIfIsAlive(m_ContainerId, m_BatchId);
         }
-        public unsafe int InstanceCount => (IntPtr)m_InstanceCount == IntPtr.Zero ? 0 : *m_InstanceCount;
-
+        public unsafe int InstanceCount => (IntPtr)m_InstanceCount == IntPtr.Zero ? 0 : GetWriteInstanceCount();
+        
         // TODO: rewrite this, may be use batch group directly?
         [ExcludeFromBurstCompatTesting("BatchHandle creating is unburstable")]
         internal unsafe BatchHandle(ContainerId containerId, BatchID batchId, NativeArray<float4> firstBuffer, NativeArray<float4> secondBuffer, bool* bufferFlag, 
@@ -75,9 +75,11 @@
         /// <returns>Returns <see cref="BatchInstanceDataBuffer"/> instance.</returns>
         public unsafe BatchInstanceDataBuffer AsInstanceDataBuffer()
         {
-            var buffer = (float4*)GetBuffer().GetUnsafePtr();
+            var buffer = (float4*)GetBufferToWrite().GetUnsafePtr();
+            var instanceCount = *m_BufferFlag ? (int*)((byte*)m_InstanceCount + UnsafeUtility.SizeOf<int>()) : m_InstanceCount;
+            
             return new BatchInstanceDataBuffer(buffer, m_Description.m_MetadataInfoMap, m_Description.m_MetadataValues,
-                m_InstanceCount, m_Description.MaxInstanceCount, m_Description.MaxInstancePerWindow, m_Description.AlignedWindowSize / 16);
+                instanceCount, m_Description.MaxInstanceCount, m_Description.MaxInstancePerWindow, m_Description.AlignedWindowSize / 16);
         }
         
         /// <summary>
@@ -86,7 +88,7 @@
         /// <param name="instanceCount"></param>
         [BurstDiscard]
         [Obsolete("This method will be removed from public API soon.")]
-        public unsafe void Upload(int instanceCount)
+        public void Upload(int instanceCount)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if(instanceCount < 0 || instanceCount > m_Description.MaxInstanceCount)
@@ -96,8 +98,7 @@
                 throw new InvalidOperationException("This batch already has been destroyed.");
 #endif
             
-            var buffer = GetBuffer();
-            *m_InstanceCount = instanceCount;
+            var buffer = GetBufferToWrite();
             
             var completeWindows = instanceCount / m_Description.MaxInstancePerWindow;
             if (completeWindows > 0)
@@ -130,13 +131,37 @@
             SwapBuffers();
         }
         
+        /// <summary>
+        /// Upload current data to the GPU side.
+        /// </summary>
+        [BurstDiscard]
+        public void Upload()
+        {
+            Upload(GetWriteInstanceCount());
+        }
+
+        /// <summary>
+        /// Destroy the batch.
+        /// </summary>
+        [BurstDiscard]
+        public void Destroy()
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if(!IsAlive)
+                throw new InvalidOperationException("This batch already has been destroyed.");
+#endif
+            
+            Destroy(m_ContainerId, m_BatchId);
+        }
+        
         private unsafe void SwapBuffers()
         {
             var bufferFlag = *m_BufferFlag;
-            var destination = bufferFlag ? m_FirstBuffer.GetUnsafePtr() : m_SecondBuffer.GetUnsafePtr();
-            var source = bufferFlag ? m_SecondBuffer.GetUnsafePtr() : m_FirstBuffer.GetUnsafePtr();
+            var destination = GetCurrentBuffer().GetUnsafePtr();
+            var source = GetBufferToWrite().GetUnsafePtr();
             
-            var instanceCount = InstanceCount;
+            var instanceCount = GetWriteInstanceCount();
+            
             var completeWindows = instanceCount / m_Description.MaxInstancePerWindow;
             if (completeWindows > 0)
             {
@@ -165,39 +190,47 @@
             }
             
             *m_BufferFlag = !bufferFlag;
+            if (bufferFlag)
+            {
+                UnsafeUtility.WriteArrayElement(m_InstanceCount, 0, UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 1));
+            }
+            else
+            {
+                UnsafeUtility.WriteArrayElement(m_InstanceCount, 1, UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 0));
+            }
         }
         
-        /// <summary>
-        /// Upload current data to the GPU side.
-        /// </summary>
-        [BurstDiscard]
-        public unsafe void Upload()
+        private unsafe NativeArray<float4> GetCurrentBuffer()
         {
-            Upload(*m_InstanceCount);
+            var flag = *m_BufferFlag;
+            var buffer = flag ? m_FirstBuffer : m_SecondBuffer;
+            return buffer;
         }
 
-        /// <summary>
-        /// Destroy the batch.
-        /// </summary>
-        [BurstDiscard]
-        public void Destroy()
-        {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(!IsAlive)
-                throw new InvalidOperationException("This batch already has been destroyed.");
-#endif
-            
-            Destroy(m_ContainerId, m_BatchId);
-        }
-        
-        private unsafe NativeArray<float4> GetBuffer()
+        private unsafe NativeArray<float4> GetBufferToWrite()
         {
             var flag = *m_BufferFlag;
             var buffer = flag ? m_SecondBuffer : m_FirstBuffer;
             return buffer;
         }
         
+        private unsafe int GetCurrentInstanceCount()
+        {
+            var flag = *m_BufferFlag;
+            if (flag)
+                return UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 0);
+            
+            return UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 1);
+        }
         
+        private unsafe int GetWriteInstanceCount()
+        {
+            var flag = *m_BufferFlag;
+            if (flag)
+                return UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 1);
+            
+            return UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 0);
+        }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Upload(ContainerId containerId, BatchID batchId, NativeArray<float4> data, int nativeBufferStartIndex, int graphicsBufferStartIndex, int count)

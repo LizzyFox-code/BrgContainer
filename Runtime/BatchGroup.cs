@@ -7,7 +7,6 @@
     using System.Diagnostics.CodeAnalysis;
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
-    using System.Threading;
     using Lod;
     using Unity.Burst;
     using Unity.Collections;
@@ -60,7 +59,7 @@
         public readonly int InstanceCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => *m_InstanceCount;
+            get => GetCurrentInstanceCount();
         }
 
         public BatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, AllocatorManager.AllocatorHandle allocatorHandle)
@@ -85,7 +84,8 @@
             m_Batches = (BatchID*)(data + batchesOffset);
             m_InstanceCount = (int*)(data + instanceCountOffset);
             
-            UnsafeUtility.MemClear(m_InstanceCount, UnsafeUtility.SizeOf<int>());
+            UnsafeUtility.MemClear(m_BufferFlag, UnsafeUtility.SizeOf<bool>());
+            UnsafeUtility.MemClear(m_InstanceCount, UnsafeUtility.SizeOf<int>() * 2);
         }
 
         public readonly NativeArray<float4> GetFirstDataBuffer()
@@ -143,21 +143,13 @@
             }
         }
 
-        public void SetInstanceCount(int instanceCount)
-        {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(instanceCount < 0 || instanceCount > m_BatchDescription.MaxInstanceCount)
-                throw new ArgumentOutOfRangeException($"Instance count {instanceCount} out of range from 0 to {m_BatchDescription.MaxInstanceCount} (include).");
-#endif
-            
-            Interlocked.Exchange(ref *m_InstanceCount, instanceCount);
-        }
-
         public NativeArray<PackedMatrix> GetObjectToWorldArray(Allocator allocator)
         {
             var nativeArray = new NativeArray<PackedMatrix>(InstanceCount, allocator);
             var windowCount = this.GetWindowCount();
 
+            var buffer = GetBuffer();
+            
             for (var i = 0; i < windowCount; i++)
             {
                 var instanceCountPerWindow = this.GetInstanceCountPerWindow(i);
@@ -165,7 +157,7 @@
                 var destinationOffset = i * m_BatchDescription.MaxInstancePerWindow * UnsafeUtility.SizeOf<PackedMatrix>();
                 var size = instanceCountPerWindow * UnsafeUtility.SizeOf<PackedMatrix>();
 
-                var sourcePtr = (void*) ((IntPtr) m_FirstBuffer + sourceOffset);
+                var sourcePtr = (void*) ((IntPtr) buffer + sourceOffset);
                 var destinationPtr = (void*) ((IntPtr) nativeArray.GetUnsafePtr() + destinationOffset);
                 
                 UnsafeUtility.MemCpy(destinationPtr, sourcePtr, size);
@@ -258,6 +250,22 @@
             return GetEnumerator();
         }
         
+        private readonly float4* GetBuffer()
+        {
+            var flag = *m_BufferFlag;
+            var buffer = flag ? m_FirstBuffer : m_SecondBuffer;
+            return buffer;
+        }
+        
+        private readonly int GetCurrentInstanceCount()
+        {
+            var flag = *m_BufferFlag;
+            if (flag)
+                return UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 0);
+            
+            return UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 1);
+        }
+        
         private static int CalculateTotalSize(int bufferLength, int batchCount, out int secondBufferOffset, out int bufferFlagOffset,
             out int batchesOffset, out int instanceCountOffset)
         {
@@ -270,7 +278,7 @@
             var lengthOfSecondBuffer = CollectionHelper.Align(sizeOfFloat4 * bufferLength, CollectionHelper.CacheLineSize);
             var lengthOfBufferFlag = CollectionHelper.Align(sizeOfBool, CollectionHelper.CacheLineSize);
             var lengthOfBatches = CollectionHelper.Align(sizeOfBatchId * batchCount, CollectionHelper.CacheLineSize);
-            var lengthOfInstanceCount = CollectionHelper.Align(sizeOfInt, CollectionHelper.CacheLineSize);
+            var lengthOfInstanceCount = CollectionHelper.Align(sizeOfInt * 2, CollectionHelper.CacheLineSize);
 
             var totalSize = lengthOfFirstBuffer + lengthOfSecondBuffer + lengthOfBufferFlag + lengthOfBatches +
                             lengthOfInstanceCount;
