@@ -9,18 +9,12 @@
     {
         [NativeDisableUnsafePtrRestriction]
         internal void* Buffer;
-        [NativeDisableUnsafePtrRestriction]
-        internal void* Batches;
-        [NativeDisableUnsafePtrRestriction]
-        internal void* InstanceCount;
-        
-        internal Allocator AllocatorLabel;
+
+        internal AllocatorManager.AllocatorHandle AllocatorHandle;
 
         public void Dispose()
         {
-            UnsafeUtility.FreeTracked(Buffer, AllocatorLabel);
-            UnsafeUtility.FreeTracked(Batches, AllocatorLabel);
-            UnsafeUtility.FreeTracked(InstanceCount, AllocatorLabel);
+            AllocatorManager.Free(AllocatorHandle, Buffer);
         }
     }
 }

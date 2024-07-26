@@ -150,7 +150,7 @@
             m_GraphicsBuffers.Add(batchId, graphicsBuffer);
             m_Groups.Add(batchId, batchGroup);
 
-            return new BatchHandle(m_ContainerId, batchId, batchGroup.GetNativeBuffer(), batchGroup.m_InstanceCount, 
+            return new BatchHandle(m_ContainerId, batchId, batchGroup.GetFirstDataBuffer(), batchGroup.GetSecondDataBuffer(), batchGroup.m_BufferFlag, batchGroup.m_InstanceCount, 
                 ref batchDescription, m_UploadFunctionPointer, m_DestroyBatchFunctionPointer, m_IsBatchAliveFunctionPointer);
         }
 

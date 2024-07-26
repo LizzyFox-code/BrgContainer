@@ -20,36 +20,50 @@
     [StructLayout(LayoutKind.Sequential)]
     [DebuggerDisplay("Count = {Length}, InstanceCount = {InstanceCount}")]
     [DebuggerTypeProxy(typeof(BatchGroupDebugView))]
-    public struct BatchGroup : INativeDisposable, IEnumerable<BatchID>
+    public unsafe struct BatchGroup : INativeDisposable, IEnumerable<BatchID>
     {
         internal BatchDescription m_BatchDescription;
 
         [NativeDisableUnsafePtrRestriction]
-        private unsafe float4* m_DataBuffer;
+        private float4* m_FirstBuffer;
         [NativeDisableUnsafePtrRestriction]
-        private unsafe BatchID* m_Batches;
+        private float4* m_SecondBuffer;
         [NativeDisableUnsafePtrRestriction]
-        internal unsafe int* m_InstanceCount;
+        internal bool* m_BufferFlag;
+        
+        [NativeDisableUnsafePtrRestriction]
+        private BatchID* m_Batches;
+        [NativeDisableUnsafePtrRestriction]
+        internal int* m_InstanceCount;
         
         public readonly int Length;
         private readonly int m_BufferLength;
-        private Allocator m_Allocator;
+        private AllocatorManager.AllocatorHandle m_AllocatorHandle;
         
         public BatchRendererData BatchRendererData;
 
-        public readonly unsafe bool IsCreated => (IntPtr) m_DataBuffer != IntPtr.Zero &&
-                                                 (IntPtr) m_Batches != IntPtr.Zero &&
-                                                 (IntPtr) m_InstanceCount != IntPtr.Zero;
-        
-        public readonly unsafe BatchID this[int index] => m_Batches[index];
+        public readonly bool IsCreated => (IntPtr) m_FirstBuffer != IntPtr.Zero;
 
-        public readonly unsafe int InstanceCount
+        public readonly BatchID this[int index]
+        {
+            get
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                if (index < 0 || index >= Length)
+                    throw new IndexOutOfRangeException(nameof(index));
+#endif
+                
+                return m_Batches[index];
+            }
+        }
+
+        public readonly int InstanceCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => *m_InstanceCount;
         }
 
-        public unsafe BatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, Allocator allocator)
+        public BatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, AllocatorManager.AllocatorHandle allocatorHandle)
         {
             m_BatchDescription = batchDescription;
             BatchRendererData = rendererData;
@@ -57,30 +71,49 @@
             m_BufferLength = m_BatchDescription.TotalBufferSize / 16;
             Length = m_BatchDescription.WindowCount;
 
-            m_Allocator = allocator;
+            m_AllocatorHandle = allocatorHandle;
 
-            m_DataBuffer = (float4*) UnsafeUtility.MallocTracked(UnsafeUtility.SizeOf<float4>() * m_BufferLength,
-                UnsafeUtility.AlignOf<float4>(),
-                allocator, 0);
-            m_Batches = (BatchID*) UnsafeUtility.MallocTracked(UnsafeUtility.SizeOf<BatchID>() * m_BufferLength,
-                UnsafeUtility.AlignOf<BatchID>(), allocator, 0);
+            var totalSize = CalculateTotalSize(m_BufferLength, Length, out var secondBufferOffset,
+                out var bufferFlagOffset, out var batchesOffset, out var instanceCountOffset);
 
-            m_InstanceCount = (int*) UnsafeUtility.MallocTracked(UnsafeUtility.SizeOf<int>(),
-                UnsafeUtility.AlignOf<int>(), allocator, 0);
+            var data = (byte*)AllocatorManager.Allocate(allocatorHandle, totalSize, CollectionHelper.CacheLineSize);
+            
+            m_FirstBuffer = (float4*)data;
+            m_SecondBuffer = (float4*)(data + secondBufferOffset);
+            m_BufferFlag = (bool*)(data + bufferFlagOffset);
+
+            m_Batches = (BatchID*)(data + batchesOffset);
+            m_InstanceCount = (int*)(data + instanceCountOffset);
+            
             UnsafeUtility.MemClear(m_InstanceCount, UnsafeUtility.SizeOf<int>());
         }
 
-        public readonly unsafe NativeArray<float4> GetNativeBuffer()
+        public readonly NativeArray<float4> GetFirstDataBuffer()
         {
-            var array = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<float4>(m_DataBuffer, m_BufferLength, m_Allocator);
+            var array = CollectionHelper.ConvertExistingDataToNativeArray<float4>(m_FirstBuffer, m_BufferLength,
+                m_AllocatorHandle);
+            
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref array, m_Allocator == Allocator.Temp ? AtomicSafetyHandle.GetTempMemoryHandle() : AtomicSafetyHandle.Create());
+            NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref array, m_AllocatorHandle == Allocator.Temp ? AtomicSafetyHandle.GetTempMemoryHandle() : AtomicSafetyHandle.Create());
 #endif
+
+            return array;
+        }
+
+        public readonly NativeArray<float4> GetSecondDataBuffer()
+        {
+            var array = CollectionHelper.ConvertExistingDataToNativeArray<float4>(m_SecondBuffer, m_BufferLength,
+                m_AllocatorHandle);
+            
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref array, m_AllocatorHandle == Allocator.Temp ? AtomicSafetyHandle.GetTempMemoryHandle() : AtomicSafetyHandle.Create());
+#endif
+
             return array;
         }
 
         [BurstDiscard]
-        public unsafe void Register([NotNull]BatchRendererGroup batchRendererGroup, GraphicsBufferHandle bufferHandle)
+        public void Register([NotNull]BatchRendererGroup batchRendererGroup, GraphicsBufferHandle bufferHandle)
         {
             var metadataValues = m_BatchDescription.AsNativeArray();
             for (var i = 0; i < m_BatchDescription.WindowCount; i++)
@@ -92,7 +125,7 @@
         }
         
         [BurstDiscard]
-        public unsafe void Unregister([NotNull]BatchRendererGroup batchRendererGroup)
+        public void Unregister([NotNull]BatchRendererGroup batchRendererGroup)
         {
             for (var i = 0; i < Length; i++)
             {
@@ -110,7 +143,7 @@
             }
         }
 
-        public unsafe void SetInstanceCount(int instanceCount)
+        public void SetInstanceCount(int instanceCount)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if(instanceCount < 0 || instanceCount > m_BatchDescription.MaxInstanceCount)
@@ -120,7 +153,7 @@
             Interlocked.Exchange(ref *m_InstanceCount, instanceCount);
         }
 
-        public unsafe NativeArray<PackedMatrix> GetObjectToWorldArray(Allocator allocator)
+        public NativeArray<PackedMatrix> GetObjectToWorldArray(Allocator allocator)
         {
             var nativeArray = new NativeArray<PackedMatrix>(InstanceCount, allocator);
             var windowCount = this.GetWindowCount();
@@ -132,7 +165,7 @@
                 var destinationOffset = i * m_BatchDescription.MaxInstancePerWindow * UnsafeUtility.SizeOf<PackedMatrix>();
                 var size = instanceCountPerWindow * UnsafeUtility.SizeOf<PackedMatrix>();
 
-                var sourcePtr = (void*) ((IntPtr) m_DataBuffer + sourceOffset);
+                var sourcePtr = (void*) ((IntPtr) m_FirstBuffer + sourceOffset);
                 var destinationPtr = (void*) ((IntPtr) nativeArray.GetUnsafePtr() + destinationOffset);
                 
                 UnsafeUtility.MemCpy(destinationPtr, sourcePtr, size);
@@ -141,75 +174,69 @@
             return nativeArray;
         }
         
-        public readonly unsafe BatchID* GetUnsafePtr()
+        public readonly BatchID* GetUnsafePtr()
         {
             return m_Batches;
         }
 
-        public unsafe void Dispose()
+        public void Dispose()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(m_Allocator == Allocator.Invalid)
+            if(m_AllocatorHandle == Allocator.Invalid)
                 throw new InvalidOperationException($"The {nameof(BatchGroup)} can not be Disposed because it was not allocated with a valid allocator.");
-            if((IntPtr)m_DataBuffer == IntPtr.Zero)
-                throw new InvalidOperationException($"The {nameof(BatchGroup)} is already disposed");
-            if((IntPtr)m_Batches == IntPtr.Zero)
-                throw new InvalidOperationException($"The {nameof(BatchGroup)} is already disposed");
-            if((IntPtr)m_InstanceCount == IntPtr.Zero)
+            if((IntPtr)m_FirstBuffer == IntPtr.Zero)
                 throw new InvalidOperationException($"The {nameof(BatchGroup)} is already disposed");
 #endif
 
-            if (m_Allocator > Allocator.None)
+            if (m_AllocatorHandle > Allocator.None)
             {
-                UnsafeUtility.FreeTracked(m_DataBuffer, m_Allocator);
-                UnsafeUtility.FreeTracked(m_Batches, m_Allocator);
-                UnsafeUtility.FreeTracked(m_InstanceCount, m_Allocator);
+                AllocatorManager.Free(m_AllocatorHandle, m_FirstBuffer);
 
                 m_BatchDescription.Dispose();
                 BatchRendererData.Dispose();
 
-                m_Allocator = Allocator.Invalid;
+                m_AllocatorHandle = Allocator.Invalid;
             }
 
-            m_DataBuffer = null;
+            m_FirstBuffer = null;
+            m_SecondBuffer = null;
+            m_BufferFlag = null;
             m_Batches = null;
             m_InstanceCount = null;
         }
 
-        public unsafe JobHandle Dispose(JobHandle inputDeps)
+        public JobHandle Dispose(JobHandle inputDeps)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if(m_Allocator == Allocator.Invalid)
+            if(m_AllocatorHandle == Allocator.Invalid)
                 throw new InvalidOperationException($"The {nameof(BatchGroup)} can not be Disposed because it was not allocated with a valid allocator.");
-            if((IntPtr)m_DataBuffer == IntPtr.Zero)
-                throw new InvalidOperationException($"The {nameof(BatchGroup)} is already disposed");
-            if((IntPtr)m_Batches == IntPtr.Zero)
-                throw new InvalidOperationException($"The {nameof(BatchGroup)} is already disposed");
-            if((IntPtr)m_InstanceCount == IntPtr.Zero)
+            if((IntPtr)m_FirstBuffer == IntPtr.Zero)
                 throw new InvalidOperationException($"The {nameof(BatchGroup)} is already disposed");
 #endif
             
-            if (m_Allocator > Allocator.None)
+            if (m_AllocatorHandle > Allocator.None)
             {
                 var disposeData = new BatchGroupDisposeData
                 {
-                    Buffer = m_DataBuffer,
-                    Batches = m_Batches,
-                    InstanceCount = m_InstanceCount,
-                    AllocatorLabel = m_Allocator,
+                    Buffer = m_FirstBuffer,
+                    AllocatorHandle = m_AllocatorHandle
                 };
                 
                 var jobHandle = new BatchGroupDisposeJob(ref disposeData).Schedule(inputDeps);
                 
-                m_DataBuffer = null;
+                m_FirstBuffer = null;
+                m_SecondBuffer = null;
+                m_BufferFlag = null;
                 m_Batches = null;
                 m_InstanceCount = null;
 
-                m_Allocator = Allocator.Invalid;
+                m_AllocatorHandle = Allocator.Invalid;
                 return JobHandle.CombineDependencies(jobHandle, m_BatchDescription.Dispose(inputDeps), BatchRendererData.Dispose(inputDeps));
             }
 
-            m_DataBuffer = null;
+            m_FirstBuffer = null;
+            m_SecondBuffer = null;
+            m_BufferFlag = null;
             m_Batches = null;
             m_InstanceCount = null;
 
@@ -229,6 +256,30 @@
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+        
+        private static int CalculateTotalSize(int bufferLength, int batchCount, out int secondBufferOffset, out int bufferFlagOffset,
+            out int batchesOffset, out int instanceCountOffset)
+        {
+            var sizeOfFloat4 = UnsafeUtility.SizeOf<float4>();
+            var sizeOfBool = UnsafeUtility.SizeOf<bool>();
+            var sizeOfBatchId = UnsafeUtility.SizeOf<BatchID>();
+            var sizeOfInt = UnsafeUtility.SizeOf<int>();
+
+            var lengthOfFirstBuffer = CollectionHelper.Align(sizeOfFloat4 * bufferLength, CollectionHelper.CacheLineSize);
+            var lengthOfSecondBuffer = CollectionHelper.Align(sizeOfFloat4 * bufferLength, CollectionHelper.CacheLineSize);
+            var lengthOfBufferFlag = CollectionHelper.Align(sizeOfBool, CollectionHelper.CacheLineSize);
+            var lengthOfBatches = CollectionHelper.Align(sizeOfBatchId * batchCount, CollectionHelper.CacheLineSize);
+            var lengthOfInstanceCount = CollectionHelper.Align(sizeOfInt, CollectionHelper.CacheLineSize);
+
+            var totalSize = lengthOfFirstBuffer + lengthOfSecondBuffer + lengthOfBufferFlag + lengthOfBatches +
+                            lengthOfInstanceCount;
+            secondBufferOffset = 0 + lengthOfFirstBuffer;
+            bufferFlagOffset = secondBufferOffset + lengthOfSecondBuffer;
+            batchesOffset = bufferFlagOffset + lengthOfBufferFlag;
+            instanceCountOffset = batchesOffset + lengthOfBatches;
+
+            return totalSize;
         }
         
         public struct Enumerator : IEnumerator<BatchID>
