@@ -4,7 +4,6 @@
     using System.Diagnostics;
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
-    using System.Threading;
     using Unity.Burst;
     using Unity.Collections.LowLevel.Unsafe;
     using Unity.Mathematics;
@@ -15,16 +14,13 @@
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     [DebuggerDisplay("InstanceCount = {InstanceCount}")]
-    public readonly unsafe struct BatchInstanceDataBuffer
+    public unsafe struct BatchInstanceDataBuffer
     {
+        private DoubleBuffer<float4> m_Buffer;
         [NoAlias, NativeDisableUnsafePtrRestriction]
-        private readonly float4* m_Buffer;
+        private UnsafeHashMap<int, MetadataInfo>* m_MetadataInfo;
         [NoAlias, NativeDisableUnsafePtrRestriction]
-        private readonly UnsafeHashMap<int, MetadataInfo>* m_MetadataInfo;
-        [NoAlias, NativeDisableUnsafePtrRestriction]
-        private readonly UnsafeList<MetadataValue>* m_MetadataValues;
-        [NoAlias, NativeDisableUnsafePtrRestriction]
-        private readonly int* m_InstanceCountReference;
+        private UnsafeList<MetadataValue>* m_MetadataValues;
 
         public readonly int Capacity;
         private readonly int m_MaxInstancePerWindow;
@@ -36,22 +32,17 @@
         public int InstanceCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => *m_InstanceCountReference;
+            readonly get => m_Buffer.Count;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                var diff = value - *m_InstanceCountReference;
-                Interlocked.Add(ref *m_InstanceCountReference, diff);
-            }
+            set => m_Buffer.Count = value;
         }
 
-        internal BatchInstanceDataBuffer(float4* buffer, UnsafeHashMap<int, MetadataInfo>* metadataInfo, UnsafeList<MetadataValue>* metadataValues,
-            int* instanceCountReference, int maxInstanceCount, int maxInstancePerWindow, int windowSizeInFloat4)
+        internal BatchInstanceDataBuffer(DoubleBuffer<float4> buffer, UnsafeHashMap<int, MetadataInfo>* metadataInfo, UnsafeList<MetadataValue>* metadataValues, 
+            int maxInstanceCount, int maxInstancePerWindow, int windowSizeInFloat4)
         {
             m_Buffer = buffer;
             m_MetadataInfo = metadataInfo;
             m_MetadataValues = metadataValues;
-            m_InstanceCountReference = instanceCountReference;
             Capacity = maxInstanceCount;
 
             m_MaxInstancePerWindow = maxInstancePerWindow;
@@ -79,7 +70,7 @@
             var offsetInFloat4 = metadataInfo.Offset / 16;
 
             var elementIndex = windowOffsetInFloat4 + offsetInFloat4 + i * sizeInFloat4;
-            UnsafeUtility.CopyStructureToPtr(ref itemData, (void*) ((IntPtr) m_Buffer + elementIndex * UnsafeUtility.SizeOf<float4>()));
+            UnsafeUtility.CopyStructureToPtr(ref itemData, (void*) ((IntPtr) m_Buffer.GetUnsafePointer() + elementIndex * UnsafeUtility.SizeOf<float4>()));
         }
 
         /// <summary>
@@ -89,7 +80,7 @@
         /// <param name="propertyId">The material property id.</param>
         /// <typeparam name="T">The blittable type.</typeparam>
         /// <returns>Returns instance data by the property id.</returns>
-        public T ReadInstanceData<T>(int index, int propertyId) where T : unmanaged
+        public readonly T ReadInstanceData<T>(int index, int propertyId) where T : unmanaged
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if(index < 0 || index >= InstanceCount)
@@ -103,7 +94,7 @@
             var offsetInFloat4 = metadataInfo.Offset / 16;
             var elementIndex = windowOffsetInFloat4 + offsetInFloat4 + i * sizeInFloat4;
             
-            UnsafeUtility.CopyPtrToStructure((void*) ((IntPtr) m_Buffer + elementIndex * UnsafeUtility.SizeOf<float4>()), out T item);
+            UnsafeUtility.CopyPtrToStructure((void*) ((IntPtr) m_Buffer.GetUnsafePointer() + elementIndex * UnsafeUtility.SizeOf<float4>()), out T item);
             return item;
         }
 
@@ -112,14 +103,14 @@
         /// </summary>
         /// <param name="instanceCount">Instance count.</param>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [Obsolete]
         public void SetInstanceCount(int instanceCount)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if(instanceCount < 0 || instanceCount > Capacity)
                 throw new ArgumentOutOfRangeException($"Instance count {instanceCount} out of range from 0 to {Capacity} (include).");
 #endif
-            
-            Interlocked.Exchange(ref *m_InstanceCountReference, instanceCount);
+            InstanceCount = instanceCount;
         }
         
         public void Remove(int index, int count)
@@ -159,8 +150,8 @@
                     var destinationIndex = startWindowOffset + startI * sizeInFloat4 + offsetInFloat4;
                     var sourceIndex = endWindowOffset + endI * sizeInFloat4 + offsetInFloat4;
                     
-                    var sourcePtr = (void*) ((IntPtr) m_Buffer + sourceIndex * UnsafeUtility.SizeOf<float4>());
-                    var destinationPtr = (void*) ((IntPtr) m_Buffer + destinationIndex * UnsafeUtility.SizeOf<float4>());
+                    var sourcePtr = (void*) ((IntPtr) m_Buffer.GetUnsafePointer() + sourceIndex * UnsafeUtility.SizeOf<float4>());
+                    var destinationPtr = (void*) ((IntPtr) m_Buffer.GetUnsafePointer() + destinationIndex * UnsafeUtility.SizeOf<float4>());
 
                     var length = copyCount * sizeInFloat4 * UnsafeUtility.SizeOf<float4>();
                     

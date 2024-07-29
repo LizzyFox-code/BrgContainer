@@ -10,16 +10,15 @@
 
     public sealed unsafe class BatchInstanceDataBufferTests
     {
-        private NativeArray<float4> array;
+        private DoubleBuffer<float4> array;
         private BatchInstanceDataBuffer buffer;
         private UnsafeHashMap<int, MetadataInfo>* metadataInfo;
         private UnsafeList<MetadataValue>* metadataValues;
-        private int* instanceCountReference;
         
         [SetUp]
         public void Setup()
         {
-            array = new NativeArray<float4>(100, Allocator.Persistent);
+            array = new DoubleBuffer<float4>(100, 4, Allocator.Persistent);
 
             metadataInfo = (UnsafeHashMap<int, MetadataInfo>*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<UnsafeHashMap<int, MetadataInfo>>(),
                 UnsafeUtility.AlignOf<UnsafeHashMap<int, MetadataInfo>>(), Allocator.Persistent);
@@ -36,12 +35,8 @@
                 Value = 0,
                 NameID = 1
             });
-
-            instanceCountReference = (int*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<int>(),
-                UnsafeUtility.AlignOf<int>(), Allocator.Persistent);
-            *instanceCountReference = 0;
    
-            buffer = new BatchInstanceDataBuffer((float4*)array.GetUnsafePtr(), metadataInfo, metadataValues, instanceCountReference, 100, 10, 400);
+            buffer = new BatchInstanceDataBuffer(array, metadataInfo, metadataValues, 100, 10, 400);
         }
 
         [TearDown]
@@ -54,7 +49,6 @@
             
             UnsafeUtility.Free(metadataInfo, Allocator.Persistent);
             UnsafeUtility.Free(metadataValues, Allocator.Persistent);
-            UnsafeUtility.Free(instanceCountReference, Allocator.Persistent);
         } 
 
         [Test]
@@ -83,15 +77,15 @@
         [Test]
         public void TestEqualsMethod()
         {
-            var otherBuffer = new BatchInstanceDataBuffer((float4*)array.GetUnsafePtr(), metadataInfo, metadataValues, instanceCountReference, 100, 10, 400);
+            var otherBuffer = new BatchInstanceDataBuffer(array, metadataInfo, metadataValues, 100, 10, 400);
             Assert.True(buffer.Equals(otherBuffer));
         }
         
         [Test]
         public void TestNotEqualsMethod()
         {
-            var array = new NativeArray<float4>(50, Allocator.Persistent);
-            var otherBuffer = new BatchInstanceDataBuffer((float4*)array.GetUnsafePtr(), metadataInfo, metadataValues, instanceCountReference, 50, 10, 200);
+            var array = new DoubleBuffer<float4>(50, 4, Allocator.Persistent);
+            var otherBuffer = new BatchInstanceDataBuffer(array, metadataInfo, metadataValues, 50, 10, 200);
             Assert.False(buffer.Equals(otherBuffer));
         }
         

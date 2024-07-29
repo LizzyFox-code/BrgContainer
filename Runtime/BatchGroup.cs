@@ -21,27 +21,21 @@
     [DebuggerTypeProxy(typeof(BatchGroupDebugView))]
     public unsafe struct BatchGroup : INativeDisposable, IEnumerable<BatchID>
     {
+        private AllocatorManager.AllocatorHandle m_AllocatorHandle;
         internal BatchDescription m_BatchDescription;
 
-        [NativeDisableUnsafePtrRestriction]
-        private float4* m_FirstBuffer;
-        [NativeDisableUnsafePtrRestriction]
-        private float4* m_SecondBuffer;
-        [NativeDisableUnsafePtrRestriction]
-        internal bool* m_BufferFlag;
-        
+        private DoubleBuffer<float4> m_Buffer;
         [NativeDisableUnsafePtrRestriction]
         private BatchID* m_Batches;
-        [NativeDisableUnsafePtrRestriction]
-        internal int* m_InstanceCount;
         
         public readonly int Length;
-        private readonly int m_BufferLength;
-        private AllocatorManager.AllocatorHandle m_AllocatorHandle;
-        
         public BatchRendererData BatchRendererData;
 
-        public readonly bool IsCreated => (IntPtr) m_FirstBuffer != IntPtr.Zero;
+        public readonly bool IsCreated
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => m_Buffer.IsCreated;
+        }
 
         public readonly BatchID this[int index]
         {
@@ -59,7 +53,7 @@
         public readonly int InstanceCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => GetCurrentInstanceCount();
+            get => m_Buffer.CurrentCount;
         }
 
         public BatchGroup(ref BatchDescription batchDescription, in BatchRendererData rendererData, AllocatorManager.AllocatorHandle allocatorHandle)
@@ -67,49 +61,20 @@
             m_BatchDescription = batchDescription;
             BatchRendererData = rendererData;
             
-            m_BufferLength = m_BatchDescription.TotalBufferSize / 16;
+            var bufferCapacity = m_BatchDescription.TotalBufferSize / 16;
             Length = m_BatchDescription.WindowCount;
 
             m_AllocatorHandle = allocatorHandle;
 
-            var totalSize = CalculateTotalSize(m_BufferLength, Length, out var secondBufferOffset,
-                out var bufferFlagOffset, out var batchesOffset, out var instanceCountOffset);
+            var totalSize = CollectionHelper.Align(UnsafeUtility.SizeOf<BatchID>() * Length, CollectionHelper.CacheLineSize);
+            m_Batches = (BatchID*)AllocatorManager.Allocate(allocatorHandle, totalSize, CollectionHelper.CacheLineSize);
 
-            var data = (byte*)AllocatorManager.Allocate(allocatorHandle, totalSize, CollectionHelper.CacheLineSize);
-            
-            m_FirstBuffer = (float4*)data;
-            m_SecondBuffer = (float4*)(data + secondBufferOffset);
-            m_BufferFlag = (bool*)(data + bufferFlagOffset);
-
-            m_Batches = (BatchID*)(data + batchesOffset);
-            m_InstanceCount = (int*)(data + instanceCountOffset);
-            
-            UnsafeUtility.MemClear(m_BufferFlag, UnsafeUtility.SizeOf<bool>());
-            UnsafeUtility.MemClear(m_InstanceCount, UnsafeUtility.SizeOf<int>() * 2);
+            m_Buffer = new DoubleBuffer<float4>(bufferCapacity, m_BatchDescription.SizePerInstance / 16, allocatorHandle);
         }
 
-        public readonly NativeArray<float4> GetFirstDataBuffer()
+        internal readonly DoubleBuffer<float4> GetDataBuffer()
         {
-            var array = CollectionHelper.ConvertExistingDataToNativeArray<float4>(m_FirstBuffer, m_BufferLength,
-                m_AllocatorHandle);
-            
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref array, m_AllocatorHandle == Allocator.Temp ? AtomicSafetyHandle.GetTempMemoryHandle() : AtomicSafetyHandle.Create());
-#endif
-
-            return array;
-        }
-
-        public readonly NativeArray<float4> GetSecondDataBuffer()
-        {
-            var array = CollectionHelper.ConvertExistingDataToNativeArray<float4>(m_SecondBuffer, m_BufferLength,
-                m_AllocatorHandle);
-            
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref array, m_AllocatorHandle == Allocator.Temp ? AtomicSafetyHandle.GetTempMemoryHandle() : AtomicSafetyHandle.Create());
-#endif
-
-            return array;
+            return m_Buffer;
         }
 
         [BurstDiscard]
@@ -176,25 +141,22 @@
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if(m_AllocatorHandle == Allocator.Invalid)
                 throw new InvalidOperationException($"The {nameof(BatchGroup)} can not be Disposed because it was not allocated with a valid allocator.");
-            if((IntPtr)m_FirstBuffer == IntPtr.Zero)
+            if((IntPtr)m_Batches == IntPtr.Zero)
                 throw new InvalidOperationException($"The {nameof(BatchGroup)} is already disposed");
 #endif
 
             if (m_AllocatorHandle > Allocator.None)
             {
-                AllocatorManager.Free(m_AllocatorHandle, m_FirstBuffer);
+                m_Buffer.Dispose();
+                AllocatorManager.Free(m_AllocatorHandle, m_Batches);
 
                 m_BatchDescription.Dispose();
                 BatchRendererData.Dispose();
 
                 m_AllocatorHandle = Allocator.Invalid;
             }
-
-            m_FirstBuffer = null;
-            m_SecondBuffer = null;
-            m_BufferFlag = null;
+            
             m_Batches = null;
-            m_InstanceCount = null;
         }
 
         public JobHandle Dispose(JobHandle inputDeps)
@@ -202,7 +164,7 @@
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if(m_AllocatorHandle == Allocator.Invalid)
                 throw new InvalidOperationException($"The {nameof(BatchGroup)} can not be Disposed because it was not allocated with a valid allocator.");
-            if((IntPtr)m_FirstBuffer == IntPtr.Zero)
+            if((IntPtr)m_Batches == IntPtr.Zero)
                 throw new InvalidOperationException($"The {nameof(BatchGroup)} is already disposed");
 #endif
             
@@ -210,28 +172,20 @@
             {
                 var disposeData = new BatchGroupDisposeData
                 {
-                    Buffer = m_FirstBuffer,
+                    Buffer = m_Batches,
                     AllocatorHandle = m_AllocatorHandle
                 };
                 
                 var jobHandle = new BatchGroupDisposeJob(ref disposeData).Schedule(inputDeps);
-                
-                m_FirstBuffer = null;
-                m_SecondBuffer = null;
-                m_BufferFlag = null;
+                jobHandle = m_Buffer.Dispose(jobHandle);
+
                 m_Batches = null;
-                m_InstanceCount = null;
 
                 m_AllocatorHandle = Allocator.Invalid;
                 return JobHandle.CombineDependencies(jobHandle, m_BatchDescription.Dispose(inputDeps), BatchRendererData.Dispose(inputDeps));
             }
-
-            m_FirstBuffer = null;
-            m_SecondBuffer = null;
-            m_BufferFlag = null;
+            
             m_Batches = null;
-            m_InstanceCount = null;
-
             return inputDeps;
         }
 
@@ -252,42 +206,7 @@
         
         private readonly float4* GetBuffer()
         {
-            var flag = *m_BufferFlag;
-            var buffer = flag ? m_FirstBuffer : m_SecondBuffer;
-            return buffer;
-        }
-        
-        private readonly int GetCurrentInstanceCount()
-        {
-            var flag = *m_BufferFlag;
-            if (flag)
-                return UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 0);
-            
-            return UnsafeUtility.ReadArrayElement<int>(m_InstanceCount, 1);
-        }
-        
-        private static int CalculateTotalSize(int bufferLength, int batchCount, out int secondBufferOffset, out int bufferFlagOffset,
-            out int batchesOffset, out int instanceCountOffset)
-        {
-            var sizeOfFloat4 = UnsafeUtility.SizeOf<float4>();
-            var sizeOfBool = UnsafeUtility.SizeOf<bool>();
-            var sizeOfBatchId = UnsafeUtility.SizeOf<BatchID>();
-            var sizeOfInt = UnsafeUtility.SizeOf<int>();
-
-            var lengthOfFirstBuffer = CollectionHelper.Align(sizeOfFloat4 * bufferLength, CollectionHelper.CacheLineSize);
-            var lengthOfSecondBuffer = CollectionHelper.Align(sizeOfFloat4 * bufferLength, CollectionHelper.CacheLineSize);
-            var lengthOfBufferFlag = CollectionHelper.Align(sizeOfBool, CollectionHelper.CacheLineSize);
-            var lengthOfBatches = CollectionHelper.Align(sizeOfBatchId * batchCount, CollectionHelper.CacheLineSize);
-            var lengthOfInstanceCount = CollectionHelper.Align(sizeOfInt * 2, CollectionHelper.CacheLineSize);
-
-            var totalSize = lengthOfFirstBuffer + lengthOfSecondBuffer + lengthOfBufferFlag + lengthOfBatches +
-                            lengthOfInstanceCount;
-            secondBufferOffset = 0 + lengthOfFirstBuffer;
-            bufferFlagOffset = secondBufferOffset + lengthOfSecondBuffer;
-            batchesOffset = bufferFlagOffset + lengthOfBufferFlag;
-            instanceCountOffset = batchesOffset + lengthOfBatches;
-
-            return totalSize;
+            return m_Buffer.GetUnsafePointer();
         }
         
         public struct Enumerator : IEnumerator<BatchID>

@@ -135,7 +135,7 @@
         /// <param name="extentsOffset">The extents offset.</param>
         /// <param name="rendererDescription">The renderer description.</param>
         /// <returns>The batch handle.</returns>
-        public unsafe BatchHandle AddBatch(ref BatchDescription batchDescription, ref LODGroup lodGroup, float3 extentsOffset, in RendererDescription rendererDescription)
+        public BatchHandle AddBatch(ref BatchDescription batchDescription, ref LODGroup lodGroup, float3 extentsOffset, in RendererDescription rendererDescription)
         {
 #if (UNITY_EDITOR || DEVELOPMENT_BUILD)
             if (lodGroup.LODs.Length == 0)
@@ -150,8 +150,8 @@
             m_GraphicsBuffers.Add(batchId, graphicsBuffer);
             m_Groups.Add(batchId, batchGroup);
 
-            return new BatchHandle(m_ContainerId, batchId, batchGroup.GetFirstDataBuffer(), batchGroup.GetSecondDataBuffer(), batchGroup.m_BufferFlag, batchGroup.m_InstanceCount, 
-                ref batchDescription, m_UploadFunctionPointer, m_DestroyBatchFunctionPointer, m_IsBatchAliveFunctionPointer);
+            return new BatchHandle(m_ContainerId, batchId, batchGroup.GetDataBuffer(), ref batchDescription, 
+                m_UploadFunctionPointer, m_DestroyBatchFunctionPointer, m_IsBatchAliveFunctionPointer);
         }
 
         /// <summary>
