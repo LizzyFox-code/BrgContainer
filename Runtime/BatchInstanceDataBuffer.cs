@@ -130,6 +130,7 @@
             var endIndex = index + count;
             var endWindowId = Math.DivRem(endIndex, m_MaxInstancePerWindow, out var endI);
 
+            var buffer = m_Buffer.GetUnsafePointer();
             for (var i = startWindowId; i < windowCount; i++)
             {
                 var startWindowOffset = startWindowId * m_WindowSizeInFloat4;
@@ -150,8 +151,8 @@
                     var destinationIndex = startWindowOffset + startI * sizeInFloat4 + offsetInFloat4;
                     var sourceIndex = endWindowOffset + endI * sizeInFloat4 + offsetInFloat4;
                     
-                    var sourcePtr = (void*) ((IntPtr) m_Buffer.GetUnsafePointer() + sourceIndex * UnsafeUtility.SizeOf<float4>());
-                    var destinationPtr = (void*) ((IntPtr) m_Buffer.GetUnsafePointer() + destinationIndex * UnsafeUtility.SizeOf<float4>());
+                    var sourcePtr = (void*) ((IntPtr) buffer + sourceIndex * UnsafeUtility.SizeOf<float4>());
+                    var destinationPtr = (void*) ((IntPtr) buffer + destinationIndex * UnsafeUtility.SizeOf<float4>());
 
                     var length = copyCount * sizeInFloat4 * UnsafeUtility.SizeOf<float4>();
                     

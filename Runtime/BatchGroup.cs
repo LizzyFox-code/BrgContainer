@@ -113,8 +113,7 @@
             var nativeArray = new NativeArray<PackedMatrix>(InstanceCount, allocator);
             var windowCount = this.GetWindowCount();
 
-            var buffer = GetBuffer();
-            
+            var buffer = m_Buffer.GetCurrentUnsafePointer();
             for (var i = 0; i < windowCount; i++)
             {
                 var instanceCountPerWindow = this.GetInstanceCountPerWindow(i);
@@ -202,11 +201,6 @@
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
-        }
-        
-        private readonly float4* GetBuffer()
-        {
-            return m_Buffer.GetUnsafePointer();
         }
         
         public struct Enumerator : IEnumerator<BatchID>

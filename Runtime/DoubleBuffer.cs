@@ -69,7 +69,7 @@
         public void Apply()
         {
             var index = *m_BufferIndex;
-            var count = UnsafeUtility.ReadArrayElement<int>(m_Count, index);
+            var count = ReadCount();
             
             if (index == 1)
                 index = 0;
@@ -77,7 +77,7 @@
                 index = 1;
             
             *m_BufferIndex = index;
-            UnsafeUtility.WriteArrayElement(m_Count, index, count);
+            WriteCount(count);
         }
         
         public void Dispose()
@@ -141,18 +141,21 @@
             return temp;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private readonly int ReadCount()
         {
             var index = *m_BufferIndex;
             return UnsafeUtility.ReadArrayElement<int>(m_Count, index);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void WriteCount(int value)
         {
             var index = *m_BufferIndex;
             UnsafeUtility.WriteArrayElement(m_Count, index, value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private readonly int ReadCurrentCount()
         {
             var index = *m_BufferIndex;

@@ -99,22 +99,22 @@
             var lastBatchId = completeWindows;
             var itemInLastBatch = instanceCount - m_Description.MaxInstancePerWindow * completeWindows;
 
-            if (itemInLastBatch <= 0)
-                return;
-            
-            var windowOffsetInFloat4 = lastBatchId * m_Description.AlignedWindowSize / 16;
-
-            var offset = 0;
-            for (var i = 0; i < m_Description.Length; i++)
+            if (itemInLastBatch > 0)
             {
-                var metadataValue = m_Description[i];
-                var metadataInfo = m_Description.GetMetadataInfo(metadataValue.NameID);
-                var startIndex = windowOffsetInFloat4 + m_Description.MaxInstancePerWindow * offset;
-                var sizeInFloat4 = metadataInfo.Size / 16;
-                offset += sizeInFloat4;
+                var windowOffsetInFloat4 = lastBatchId * m_Description.AlignedWindowSize / 16;
 
-                Upload(m_ContainerId, m_BatchId, buffer, startIndex, startIndex,
-                    itemInLastBatch * sizeInFloat4);
+                var offset = 0;
+                for (var i = 0; i < m_Description.Length; i++)
+                {
+                    var metadataValue = m_Description[i];
+                    var metadataInfo = m_Description.GetMetadataInfo(metadataValue.NameID);
+                    var startIndex = windowOffsetInFloat4 + m_Description.MaxInstancePerWindow * offset;
+                    var sizeInFloat4 = metadataInfo.Size / 16;
+                    offset += sizeInFloat4;
+
+                    Upload(m_ContainerId, m_BatchId, buffer, startIndex, startIndex,
+                        itemInLastBatch * sizeInFloat4);
+                }
             }
             
             SwapBuffers();
@@ -159,22 +159,23 @@
             
             var lastBatchId = completeWindows;
             var itemInLastBatch = instanceCount - m_Description.MaxInstancePerWindow * completeWindows;
-            if (itemInLastBatch <= 0)
-                return;
-            
-            var windowOffsetInFloat4 = lastBatchId * m_Description.AlignedWindowSize / 16;
-
-            var offset = 0;
-            for (var i = 0; i < m_Description.Length; i++)
+            if (itemInLastBatch > 0)
             {
-                var metadataValue = m_Description[i];
-                var metadataInfo = m_Description.GetMetadataInfo(metadataValue.NameID);
-                var startIndex = windowOffsetInFloat4 + m_Description.MaxInstancePerWindow * offset;
-                var sizeInFloat4 = metadataInfo.Size / 16;
-                offset += sizeInFloat4;
+                var windowOffsetInFloat4 = lastBatchId * m_Description.AlignedWindowSize / 16;
 
-                var bufferOffset = UnsafeUtility.SizeOf<float4>() * startIndex;
-                UnsafeUtility.MemCpy((byte*)destination + bufferOffset, (byte*)source + bufferOffset, itemInLastBatch * sizeInFloat4 * UnsafeUtility.SizeOf<float4>());
+                var offset = 0;
+                for (var i = 0; i < m_Description.Length; i++)
+                {
+                    var metadataValue = m_Description[i];
+                    var metadataInfo = m_Description.GetMetadataInfo(metadataValue.NameID);
+                    var startIndex = windowOffsetInFloat4 + m_Description.MaxInstancePerWindow * offset;
+                    var sizeInFloat4 = metadataInfo.Size / 16;
+                    offset += sizeInFloat4;
+
+                    var bufferOffset = UnsafeUtility.SizeOf<float4>() * startIndex;
+                    UnsafeUtility.MemCpy((byte*)destination + bufferOffset, (byte*)source + bufferOffset,
+                        itemInLastBatch * sizeInFloat4 * UnsafeUtility.SizeOf<float4>());
+                }
             }
             
             m_Buffer.Apply();
