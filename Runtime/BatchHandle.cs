@@ -153,7 +153,7 @@
             var completeWindows = instanceCount / m_Description.MaxInstancePerWindow;
             if (completeWindows > 0)
             {
-                var size = completeWindows * m_Description.AlignedWindowSize / 16;
+                var size = completeWindows * m_Description.AlignedWindowSize;
                 UnsafeUtility.MemCpy(destination, source, size);
             }
             
